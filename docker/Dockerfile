@@ -22,7 +22,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-gazebo-ros-pkgs \
     ros-humble-ros-core \
     ros-humble-geometry2 \
+    locales \
     && rm -rf /var/lib/apt/lists/*
+
+# 1.1 Configure Locales (Fix encoding issues)
+RUN locale-gen en_US.UTF-8 ko_KR.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
 # 2. Configure ccache (Speed up builds)
 ENV PATH="/usr/lib/ccache:$PATH"

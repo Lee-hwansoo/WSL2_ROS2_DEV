@@ -1,6 +1,6 @@
 #!/bin/bash
-# setup_linux.sh
-# Main entry point for bootstrapping Ubuntu on WSL2
+# setup_ubuntu.sh
+# Main entry point for bootstrapping Ubuntu (WSL2 or Native)
 
 set -e
 set -o pipefail
@@ -21,6 +21,15 @@ TARGET_USER=${1:-ros}
 # --- Main ---
 ensure_root
 
+# Detect Environment
+if grep -q "WSL" /proc/version; then
+    IS_WSL=true
+    log_info "Detected WSL environment."
+else
+    IS_WSL=false
+    log_info "Detected Native Linux environment."
+fi
+
 log_info "Starting Linux Environment Setup for user: $TARGET_USER"
 
 # 1. Base Setup
@@ -35,7 +44,10 @@ install_nvidia_toolkit
 
 # 4. User Configuration
 setup_user "$TARGET_USER"
-setup_wsl_conf "$TARGET_USER"
+
+if [ "$IS_WSL" = true ]; then
+    setup_wsl_conf "$TARGET_USER"
+fi
 
 # 5. Cleanup
 apt-get autoremove -y

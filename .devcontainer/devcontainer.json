@@ -13,9 +13,11 @@
         "-e",
         "DISPLAY=${env:DISPLAY}"
     ],
-    "workspaceMount": "source=${localWorkspaceFolder},target=/home/ros/ros_ws,type=bind",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/ros/env,type=bind",
     "workspaceFolder": "/home/ros/ros_ws",
     "mounts": [
+        // Mount workspace from local folder (Visible in WSL)
+        "source=${localWorkspaceFolder}/../ros_ws,target=/home/ros/ros_ws,type=bind",
         // Mount ccache volume for build performance
         "source=ros2_ccache,target=/home/ros/.ccache,type=volume",
         // Mount X11 socket for GUI (WSLg support)
@@ -47,6 +49,6 @@
             ]
         }
     },
-    "postCreateCommand": "bash scripts/init_workspace.sh",
+    "postCreateCommand": "bash /home/ros/env/scripts/init_workspace.sh",
     "remoteUser": "ros"
 }

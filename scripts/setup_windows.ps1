@@ -204,12 +204,52 @@ function Bootstrap-Linux {
     # e.g. C:\Users\... -> /mnt/c/Users/...
     $driveLetter = $ScriptDir.Substring(0,1).ToLower()
     $relativePath = $ScriptDir.Substring(3).Replace("\", "/")
-    $linuxScript = "/mnt/$driveLetter/$relativePath/setup_linux.sh"
+    $linuxScript = "/mnt/$driveLetter/$relativePath/setup_ubuntu.sh"
 
     # We must ensure line endings of linux script are LF if we run it directly? 
     # Usually WSL handles it, but safer to run via bash
     
     Exec-Command "wsl" @("-d", $DistroName, "-u", "root", "--", "bash", $linuxScript, $TargetUser)
+}
+
+function Copy-Project-To-WSL {
+    Log-Info "Copying Setup Project to WSL user home..."
+    
+    $projectRoot = Split-Path $ScriptDir -Parent
+    $wslDest = "\\wsl.localhost\$DistroName\home\$TargetUser\env"
+    
+    if ($DryRun) {
+        Log-Info "[DRY-RUN] Would copy '$projectRoot' to '$wslDest'"
+        return
+    }
+
+    try {
+        if (-not (Test-Path $wslDest)) {
+            New-Item -ItemType Directory -Path $wslDest -Force | Out-Null
+        }
+        
+        Log-Info "Copying files (this may take a moment)..."
+        # Exclude unnecessary files to keep WSL clean
+        # - .git: Repo history not needed in env
+        # - Cache: Downloaded artifacts
+        # - .vscode: Local VS Code settings
+        # - *.ps1: Windows scripts not needed in Linux
+        Get-ChildItem -Path $projectRoot -Exclude ".git", "Cache", ".vscode", "tmp" | Where-Object { $_.Name -notlike "*.ps1" } | Copy-Item -Destination $wslDest -Recurse -Force
+        
+        Log-Success "Project copied dynamically to WSL: ~/env"
+
+        # Create sibling workspace directory for data persistence (ros_ws)
+        $wslWorkspace = "\\wsl.localhost\$DistroName\home\$TargetUser\ros_ws"
+        if (-not (Test-Path $wslWorkspace)) {
+            New-Item -ItemType Directory -Path $wslWorkspace -Force | Out-Null
+            # Create src inside it too
+            New-Item -ItemType Directory -Path "$wslWorkspace\src" -Force | Out-Null
+            Log-Success "Created sibling workspace directory: ~/ros_ws"
+        }
+    } catch {
+        Log-Warn "Failed to copy project to WSL automatically: $_"
+        Log-Warn "You may need to manually copy the project to WSL to use the bind-mount features."
+    }
 }
 
 # --- Main Execution ---
@@ -228,6 +268,7 @@ try {
     
     Install-WslDistro
     Bootstrap-Linux
+    Copy-Project-To-WSL
 
     Log-Success "Setup Completed Successfully!"
     

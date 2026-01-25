@@ -59,6 +59,21 @@ install_nvidia_toolkit() {
     nvidia-ctk runtime configure --runtime=docker
 }
 
+setup_workspace_permissions() {
+    local username=$1
+    local workspace_dir="/home/$username/ros_ws"
+    local env_dir="/home/$username/env"
+    
+    log_info "Ensuring workspace permissions for $username..."
+    
+    # Pre-create directories to ensure ownership
+    mkdir -p "$workspace_dir/src" "$env_dir"
+    
+    # Recursively fix ownership
+    chown -R "$username:$username" "/home/$username"
+    log_success "Permissions fixed for /home/$username"
+}
+
 setup_user() {
     local username=$1
     if id -u "$username" &>/dev/null; then
@@ -72,6 +87,9 @@ setup_user() {
     
     # Ensure groups
     usermod -aG sudo,docker "$username"
+    
+    # Fix permissions
+    setup_workspace_permissions "$username"
 }
 
 setup_wsl_conf() {

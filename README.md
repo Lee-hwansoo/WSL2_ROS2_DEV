@@ -32,7 +32,7 @@ Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
 **PowerShell을 관리자 권한**으로 실행한 뒤 프로젝트 경로에서 다음 명령어를 입력하세요:
 
 ```powershell
-# 기본 설치 (Ubuntu 22.04)
+# PowerShell (관리자 권한)
 .\scripts\setup_windows.ps1
 
 # [옵션] 드라이 런 (실행하지 않고 로그만 확인)
@@ -49,6 +49,39 @@ Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
 3. **RootFS 다운로드**: 검증된 Ubuntu 이미지를 다운로드하여 캐시합니다.
 4. **배포판 등록**: 스마트 드라이브 감지 로직으로 최적의 위치(D:\ 등)에 설치합니다.
 5. **리눅스 부트스트랩**: 사용자 생성, 그룹 설정, Docker 설치 및 권한 부여를 자동으로 수행합니다.
+6. **이 프로젝트를 WSL 내부(`~/env`)로 자동 복사**
+
+### 2. 개발 시작 (WSL에서 실행)
+
+설치가 완료되면 다음 순서로 실행하세요:
+
+1. **WSL 터미널 열기**: `wsl` 입력
+2. **프로젝트로 이동**: (자동으로 복사된 경로)
+   ```bash
+   cd ~/env
+   ```
+3. **VS Code 실행**:
+   ```bash
+   code .
+   ```
+4. **"Reopen in Container"** 클릭.
+
+> **Why WSL?**: WSL 안에서 Dev Container를 실행하면 WSL 파일 탐색기에서 모든 파일을 볼 수 있고, Docker와의 연결도 가장 안정적입니다. (권장: WSL Native 방식)
+
+### 3. 리눅스 설치 (Native Ubuntu)
+
+WSL이 아닌 일반 Ubuntu 컴퓨터에서도 동일한 환경을 구축할 수 있습니다.
+
+1.  **스크립트 실행**:
+    ```bash
+    sudo bash scripts/setup_ubuntu.sh
+    ```
+2.  **VS Code 실행**:
+    ```bash
+    code .
+    ```
+3.  **"Reopen in Container"** 클릭.
+    *   완전히 동일하게 Docker 컨테이너가 실행되고, `../ros_ws`에 똑같이 작업 공간이 생성됩니다.
 
 ### 2. 개발 환경 접속 (Dev Container)
 

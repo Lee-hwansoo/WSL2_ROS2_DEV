@@ -13,24 +13,33 @@
         "-e",
         "DISPLAY=${env:DISPLAY}"
     ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/ros/ros_ws,type=bind",
+    "workspaceFolder": "/home/ros/ros_ws",
     "mounts": [
         // Mount ccache volume for build performance
-        "source=ros2_ccache,target=/home/ros/.ccache,type=volume"
+        "source=ros2_ccache,target=/home/ros/.ccache,type=volume",
+        // Mount X11 socket for GUI (WSLg support)
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
     ],
     "containerEnv": {
         "DISPLAY": ":0",
         "LIBGL_ALWAYS_SOFTWARE": "1",
         "QT_X11_NO_MITSHM": "1"
     },
-    // Add extension recommendation for cleaner setup
     "customizations": {
         "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+                
+            },
             "extensions": [
-                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
                 "ms-iot.vscode-ros",
                 "ms-python.python",
                 "twxs.cmake",
-                "yzhang.markdown-all-in-one"
+                "yzhang.markdown-all-in-one",
+                "mhutchie.git-graph",
+                "eamodio.gitlens"
             ]
         }
     },

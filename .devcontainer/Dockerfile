@@ -4,8 +4,11 @@ ARG USERNAME=ros
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# 1. Install Base Tools, ccache, Gazebo, and ROS2 Utils
+# 1. Install Base Tools and Dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository universe \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ccache \
     curl \
     git \
@@ -18,7 +21,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     net-tools \
     python3-pip \
     python3-vcstool \
-    gazebo11 \
     ros-humble-gazebo-ros-pkgs \
     ros-humble-ros-core \
     ros-humble-geometry2 \

@@ -27,15 +27,22 @@ Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
 **PowerShell을 관리자 권한**으로 실행한 뒤 프로젝트 경로에서 다음 명령어를 입력하세요:
 
 ```powershell
+# 기본 설치 (Ubuntu 22.04)
 .\scripts\setup_windows.ps1
+
+# [옵션] 드라이 런 (실행하지 않고 로그만 확인)
+.\scripts\setup_windows.ps1 -DryRun
+
+# [옵션] 다른 배포판 이름으로 설치
+.\scripts\setup_windows.ps1 -DistroName "My-ROS-Bot"
 ```
 
 **스크립트 수행 작업:**
-1.  WSL2 및 가상 머신 플랫폼 기능을 활성화합니다.
-2.  `usbipd` (USB/CAN 지원용) 및 필수 구성 요소를 설치합니다.
-3.  검증된 Ubuntu 22.04 RootFS 이미지를 다운로드합니다.
-4.  Linux를 `D:\WSL\Ubuntu-22.04` (또는 `C:\` 없을 시)에 설치(Import)합니다.
-5.  `systemd`를 설정하고 Linux 내부에서 Docker를 부트스트랩합니다.
+1.  **WSL2 활성화**: 필요한 Windows 기능을 자동으로 켜고 재부팅을 안내합니다.
+2.  **의존성 설치**: `usbipd` 등 필수 도구를 확인하고 설치합니다.
+3.  **RootFS 다운로드**: 검증된 Ubuntu 이미지를 다운로드하여 캐시합니다.
+4.  **배포판 등록**: 스마트 드라이브 감지 로직으로 최적의 위치(D:\ 등)에 설치합니다.
+5.  **리눅스 부트스트랩**: 사용자 생성, 그룹 설정, Docker 설치 및 권한 부여를 자동으로 수행합니다.
 
 ### 2. 개발 환경 접속 (Dev Container)
 
@@ -78,6 +85,15 @@ WSL 및 도커에서 USB 장치를 사용하려면 윈도우에서 장치를 연
     lsusb
     ifconfig can0
     ```
+
+### 4. GPU 가속 활성화 (선택 사항)
+NVIDIA 그래픽 카드가 있는 경우, 시뮬레이션 성능을 위해 GPU 가속을 켤 수 있습니다.
+
+1.  `.devcontainer/devcontainer.json` 파일을 엽니다.
+2.  `// "--gpus=all"` 부분의 주석(`//`)을 제거합니다.
+3.  **Rebuild Container**를 실행합니다.
+
+> **주의**: GPU가 없는 컴퓨터에서 이 옵션을 켜면 컨테이너가 실행되지 않습니다. (기본값: 꺼짐)
 
 ## 📂 디렉토리 구조
 

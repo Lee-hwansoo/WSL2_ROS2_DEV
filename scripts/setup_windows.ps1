@@ -1,30 +1,36 @@
-# setup_windows.ps1
-# Sets up a complete Ubuntu 22.04 dev environment on WSL2
-# Features: Drive auto-detection, Docker, USB-CAN support, Resource optimization
+<#
+.SYNOPSIS
+    Sets up a complete Ubuntu 22.04 dev environment on WSL2.
+.DESCRIPTION
+    This script automates the deployment of a ROS2 development environment.
+    It handles WSL feature enablement, distro import, and Linux bootstrapping.
+.PARAMETER DistroName
+    Name of the WSL distribution to register (default: Ubuntu-22.04)
+.PARAMETER TargetUser
+    Username to create inside Linux. If not provided, attempts to read from devcontainer.json.
+.PARAMETER InstallPath
+    Custom path to install the distro. If not provided, determined automatically based on available drives.
+.PARAMETER DryRun
+    If set, only prints commands without executing them.
+#>
+[CmdletBinding()]
+Param(
+    [string]$DistroName = "Ubuntu-22.04",
+    [string]$TargetUser,
+    [string]$InstallPath,
+    [Switch]$DryRun
+)
 
 $ErrorActionPreference = "Stop"
 
-# --- Constants ---
-$DISTRO_NAME = "Ubuntu-22.04"
-$UBUNTU_URL = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64-root.tar.xz"
-$TAR_FILENAME = "ubuntu-22.04.tar.xz"
+# --- Configuration ---
+$CONFIG = @{
+    UbuntuUrl = "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64-root.tar.xz"
+    TarFilename = "ubuntu-22.04.tar.xz"
+    RequiredFeatures = @("Microsoft-Windows-Subsystem-Linux", "VirtualMachinePlatform")
+}
 
 # --- Helper Functions ---
-
-function Check-Admin {
-    $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-    if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
-        Write-Error "This script must be run as Administrator."
-        exit 1
-    }
-}
-
-function Get-InstallDrive {
-    if (Test-Path "D:\") {
-        return "D:\"
-    }
-    return "C:\"
-}
 
 function Log-Info {
     param([string]$Message)
@@ -41,158 +47,212 @@ function Log-Warn {
     Write-Host "[WARN] $Message" -ForegroundColor Yellow
 }
 
+function Log-Error {
+    param([string]$Message)
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
+}
+
+function Exec-Command {
+    param(
+        [string]$Command,
+        [string[]]$Arguments
+    )
+
+    if ($DryRun) {
+        Write-Host "[DRY-RUN] $Command $Arguments" -ForegroundColor Gray
+        return
+    }
+
+    try {
+        & $Command $Arguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Command '$Command' failed with exit code $LASTEXITCODE"
+        }
+    } catch {
+        throw "Failed to execute: $Command $Arguments. Error: $_"
+    }
+}
+
+function Check-Admin {
+    $currentPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+        throw "This script must be run as Administrator."
+    }
+}
+
+function Get-ProjectUser {
+    if (-not [string]::IsNullOrWhiteSpace($TargetUser)) {
+        return $TargetUser
+    }
+
+    $devContainerPath = Join-Path (Split-Path -Parent $PSScriptRoot) ".devcontainer\devcontainer.json"
+    if (Test-Path $devContainerPath) {
+        $content = Get-Content -Path $devContainerPath -Raw
+        if ($content -match '"remoteUser"\s*:\s*"([^"]+)"') {
+            return $matches[1]
+        }
+    }
+
+    Log-Warn "Could not detect user from devcontainer.json. Defaulting to 'ros'."
+    return "ros"
+}
+
+function Get-WslInstallPath {
+    if (-not [string]::IsNullOrWhiteSpace($InstallPath)) {
+        return $InstallPath
+    }
+
+    $drive = "C:\"
+    if (Test-Path "D:\") { $drive = "D:\" }
+
+    return Join-Path $drive "WSL\$DistroName"
+}
+
 # --- Core Logic ---
 
 function Enable-WslFeatures {
-    Log-Info "Checking Windows Features ..."
-    $features = @(
-        "Microsoft-Windows-Subsystem-Linux",
-        "VirtualMachinePlatform"
-    )
-    
+    Log-Info "Checking Windows Features..."
     $restartNeeded = $false
-    foreach ($feature in $features) {
+
+    foreach ($feature in $CONFIG.RequiredFeatures) {
         $state = Get-WindowsOptionalFeature -Online -FeatureName $feature
         if ($state.State -ne "Enabled") {
-            Log-Info "Enabling $feature ..."
-            Enable-WindowsOptionalFeature -Online -FeatureName $feature -NoRestart | Out-Null
+            Log-Info "Enabling $feature..."
+            if (-not $DryRun) {
+                Enable-WindowsOptionalFeature -Online -FeatureName $feature -NoRestart | Out-Null
+            }
             $restartNeeded = $true
-        } else {
-            Log-Info "$feature is already enabled."
         }
     }
 
     if ($restartNeeded) {
-        Write-Warning "WSL features were enabled. You MUST reboot your computer now."
-        Write-Warning "Please restart and run this script again."
+        Log-Warn "WSL features enabled. REBOOT REQUIRED."
+        if ($DryRun) { return }
         exit 0
     }
 }
 
-function Configure-WslGlobal {
-    Log-Info "Configuring global .wslconfig ..."
-    $wslConfigDest = "$env:USERPROFILE\.wslconfig"
-    
-    # Locate source config relative to script
-    $ScriptDir = $PSScriptRoot
-    $ConfigDir = Join-Path (Split-Path -Parent $ScriptDir) "config"
-    $SourceConfig = Join-Path $ConfigDir ".wslconfig"
+function Configure-GlobalWsl {
+    Log-Info "Configuring global .wslconfig..."
+    $source = Join-Path (Split-Path -Parent $PSScriptRoot) "config\.wslconfig"
+    $dest = "$env:USERPROFILE\.wslconfig"
 
-    if (Test-Path $SourceConfig) {
-        Copy-Item -Path $SourceConfig -Destination $wslConfigDest -Force
-        Log-Success ".wslconfig updated from $SourceConfig"
-    } else {
-        Log-Warn "Config file not found at $SourceConfig. Skipping."
-    }
-}
-
-function Install-WindowsDependencies {
-    Log-Info "Checking for 'usbipd' (USB/CAN support) ..."
-    try {
-        $usbipd = winget list --id "dorssel.usbipd-win" --exact --accept-source-agreements
-        if (-not $usbipd) {
-            Log-Info "Installing 'usbipd' ..."
-            winget install --id "dorssel.usbipd-win" --exact --accept-source-agreements --accept-package-agreements
-        } else {
-            Log-Success "'usbipd' is already installed."
+    if (Test-Path $source) {
+        if (-not $DryRun) {
+            Copy-Item -Path $source -Destination $dest -Force
         }
-    } catch {
-        Log-Warn "Failed to query winget for usbipd. Please install manually if needed."
+        Log-Success "Updated .wslconfig"
     }
 }
 
-function Import-UbuntuDistro {
-    param([string]$TargetDrive, [string]$InstallPath)
+function Install-Dependencies {
+    Log-Info "Checking external dependencies..."
+    if ($DryRun) { return }
 
-    if (wsl --list --quiet | Select-String -Pattern "$DISTRO_NAME") {
-        Log-Success "Distro '$DISTRO_NAME' already exists. Skipping import."
+    if (-not (Get-Command "winget" -ErrorAction SilentlyContinue)) {
+        Log-Warn "Winget not found. Skipping USBIPD check."
         return
     }
 
-    Log-Info "Preparing to import '$DISTRO_NAME' to $InstallPath ..."
-    
-    if (-not (Test-Path $InstallPath)) {
-        New-Item -ItemType Directory -Path $InstallPath -Force | Out-Null
+    $usbipd = winget list --id "dorssel.usbipd-win" --exact --accept-source-agreements
+    if (-not $usbipd) {
+        Log-Info "Installing usbipd-win..."
+        winget install --id "dorssel.usbipd-win" --exact --accept-source-agreements --accept-package-agreements
+    }
+}
+
+function Restart-Wsl {
+    Write-Host ""
+    Log-Warn "To apply global settings (.wslconfig) and systemd, a full WSL restart is required."
+    Log-Warn "WARNING: This will terminate ALL running WSL distributions."
+
+    if ($DryRun) {
+        Log-Info "[DRY-RUN] Would prompt for restart here."
+        return
     }
 
-    # Determine WSL Base Directory (e.g., D:\WSL) to store the tarball
-    $WslBaseDir = Join-Path $TargetDrive "WSL"
-    if (-not (Test-Path $WslBaseDir)) {
-        New-Item -ItemType Directory -Path $WslBaseDir -Force | Out-Null
-    }
-
-    $tarPath = Join-Path $WslBaseDir $TAR_FILENAME
-
-    if (-not (Test-Path $tarPath)) {
-        Log-Info "Downloading $DISTRO_NAME RootFS Tarball ..."
-        Invoke-WebRequest -Uri $UBUNTU_URL -OutFile $tarPath
+    $response = Read-Host "Restart WSL now? (Y/n)"
+    if ($response -eq "" -or $response -match "^[Yy]") {
+        Log-Info "Stopping WSL..."
+        wsl --shutdown
+        Log-Success "WSL has been shut down."
+        Log-Info "You can now reopen your project in VS Code."
     } else {
-        Log-Info "Found cached Tarball at $tarPath."
+        Log-Info "Skipping restart. Please run 'wsl --shutdown' manually before using the environment."
     }
-
-    Log-Info "Importing WSL Distro (this may take a minute) ..."
-    wsl --import $DISTRO_NAME $InstallPath $tarPath --version 2
-    Log-Success "Import complete."
 }
 
-function Configure-LinuxDistro {
-    Log-Info "Bootstrapping Linux Environment ..."
-    
-    # Locate the linux setup script
-    $ScriptDir = $PSScriptRoot
-    $LinuxScriptHostPath = Join-Path $ScriptDir "setup_linux.sh"
+function Setup-Distro {
+    param([string]$User)
 
-    if (-not (Test-Path $LinuxScriptHostPath)) {
-        Write-Error "Could not find 'setup_linux.sh' at $LinuxScriptHostPath"
-        exit 1
+    $installPath = Get-WslInstallPath
+    Log-Info "Target Install Path: $installPath"
+
+    # Check existing
+    if (wsl --list --quiet | Select-String -Pattern $DistroName) {
+        Log-Success "Distro '$DistroName' already registered."
+    } else {
+        # Prepare Import
+        $tarDir = Join-Path (Split-Path $installPath -Parent) "Cache"
+        $tarPath = Join-Path $tarDir $CONFIG.TarFilename
+
+        if (-not $DryRun) {
+            if (-not (Test-Path $installPath)) { New-Item -ItemType Directory -Path $installPath -Force | Out-Null }
+            if (-not (Test-Path $tarDir)) { New-Item -ItemType Directory -Path $tarDir -Force | Out-Null }
+
+            if (-not (Test-Path $tarPath)) {
+                Log-Info "Downloading RootFS..."
+                Invoke-WebRequest -Uri $CONFIG.UbuntuUrl -OutFile $tarPath
+            }
+        }
+
+        Log-Info "Importing Distro..."
+        Exec-Command "wsl" @("--import", $DistroName, $installPath, $tarPath, "--version", "2")
     }
 
-    # Convert Windows path to WSL mounted path
-    # e.g., C:\Users\... -> /mnt/c/Users/...
-    # We must ensure to use the correct drive letter casing (lower) and slashes
-    $DriveLetter = $ScriptDir.Substring(0,1).ToLower()
-    $PathWithoutDrive = $ScriptDir.Substring(3).Replace("\", "/")
-    $MountedScriptDir = "/mnt/$DriveLetter/$PathWithoutDrive"
-    $MountedScriptPath = "$MountedScriptDir/setup_linux.sh"
+    # Configure Linux inside
+    Log-Info "Bootstrapping Linux environment..."
 
-    Log-Info "Executing setup_linux.sh from mounted path: $MountedScriptPath"
+    # Resolve paths for mounting
+    $scriptDir = $PSScriptRoot
+    $driveLetter = $scriptDir.Substring(0,1).ToLower()
+    $pathRest = $scriptDir.Substring(3).Replace("\", "/")
+    $linuxScriptPath = "/mnt/$driveLetter/$pathRest/setup_linux.sh"
 
-    # Ensure the script is executable
-    # Note: If located on NTFS metadata mounted drive, chmod might not persist without 'metadata' option
-    # but we can try executing with 'bash' explicitly
-    wsl -d $DISTRO_NAME -u root -- bash $MountedScriptPath
-    
-    Log-Success "Linux environment configured."
+    # Execute Linux Setup
+    # Pass arguments: [TargetUser]
+    Exec-Command "wsl" @("-d", $DistroName, "-u", "root", "--", "bash", $linuxScriptPath, $User)
+
+    if (-not $DryRun) {
+        Log-Success "Setup Complete!"
+        Log-Info "Run 'wsl -d $DistroName' to enter."
+    }
 }
 
-# --- Main Execution Flow ---
-
+# --- Main ---
 Try {
     Clear-Host
-    Log-Info "Starting WSL2 ($DISTRO_NAME) Setup ..."
+    Log-Info "Starting WSL Setup for '$DistroName'"
 
     Check-Admin
     Enable-WslFeatures
-    
-    Log-Info "Updating WSL Kernel ..."
-    wsl --update
-    
-    Configure-WslGlobal
-    Install-WindowsDependencies
 
-    $drive = Get-InstallDrive
-    $installPath = Join-Path $drive "WSL\$DISTRO_NAME"
-    Log-Info "Target Drive: $drive"
-    Log-Info "Install Path: $installPath"
+    if (-not $DryRun) {
+        wsl --update
+    }
 
-    Import-UbuntuDistro -TargetDrive $drive -InstallPath $installPath
-    Configure-LinuxDistro
+    Configure-GlobalWsl
+    Install-Dependencies
+
+    $user = Get-ProjectUser
+    Log-Info "Target User: $user"
+
+    Setup-Distro -User $user
 
     Log-Success "Installation Completed Successfully!"
-    Log-Info "To access your new environment run: wsl -d $DISTRO_NAME"
-    Log-Info "Note: You are logged in as 'root' by default. You may want to create a user with 'adduser <username>'."
+    Restart-Wsl
 
 } Catch {
-    Write-Error "An error occurred: $_"
+    Log-Error $_
     exit 1
 }

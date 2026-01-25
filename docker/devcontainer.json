@@ -1,0 +1,39 @@
+{
+    "name": "ROS2 Hunter Dev Env",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "USERNAME": "ros"
+        }
+    },
+    "runArgs": [
+        "--network=host",
+        "--privileged",
+        "--gpus=all",
+        "-e",
+        "DISPLAY=${env:DISPLAY}"
+    ],
+    "mounts": [
+        // Mount ccache volume for build performance
+        "source=ros2_ccache,target=/home/ros/.ccache,type=volume"
+    ],
+    "containerEnv": {
+        "DISPLAY": ":0",
+        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "QT_X11_NO_MITSHM": "1"
+    },
+    // Add extension recommendation for cleaner setup
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-iot.vscode-ros",
+                "ms-python.python",
+                "twxs.cmake",
+                "yzhang.markdown-all-in-one"
+            ]
+        }
+    },
+    "postCreateCommand": "bash scripts/init_workspace.sh",
+    "remoteUser": "ros"
+}

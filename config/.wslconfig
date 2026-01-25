@@ -1,0 +1,8 @@
+[wsl2]
+processors=4
+memory=8GB
+swap=4GB
+guiApplications=true
+networkingMode=mirrored
+dnsTunneling=true
+firewall=true

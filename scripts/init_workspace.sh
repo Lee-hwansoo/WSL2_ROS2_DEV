@@ -58,19 +58,9 @@ setup_terminator() {
     
     mkdir -p "$(dirname "$config_dest")"
     
-    # Check if link needs update
-    if [ -L "$config_dest" ] && [ "$(readlink -f "$config_dest")" == "$(readlink -f "$config_src")" ]; then
-        return
-    fi
-    
-    # Backup if it's a real file
-    if [ -f "$config_dest" ] && [ ! -L "$config_dest" ]; then
-        mv "$config_dest" "${config_dest}.bak"
-        log "Backed up existing terminator config."
-    fi
-    
+    # Use Symlink for Hot-Reloading (Windows -> WSL -> Docker)
     ln -sf "$config_src" "$config_dest"
-    log "Linked Terminator config."
+    log "Linked Terminator config (Symlink)."
 }
 
 init_rosdep() {

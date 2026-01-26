@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-ros-core \
     ros-humble-geometry2 \
     locales \
+    fonts-ubuntu \
     # Intel iGPU & Media Acceleration
     intel-media-va-driver-non-free \
     libmfx1 \
@@ -59,11 +60,11 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 4. Create User & Grant Sudo
 RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
-# 5. Pre-configure Terminator (Skeleton dir)
+# 5. Pre-configure (Skeleton dir)
 USER $USERNAME
 RUN mkdir -p /home/$USERNAME/.config/terminator \
     && mkdir -p /home/$USERNAME/.ccache

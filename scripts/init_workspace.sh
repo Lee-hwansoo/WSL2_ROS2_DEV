@@ -108,4 +108,3 @@ init_rosdep
 init_gpu
 
 log "Workspace Ready!"
-

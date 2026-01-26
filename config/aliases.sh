@@ -27,9 +27,10 @@ alias rqt='rqt'
 alias gpu_check='if ! command -v glxinfo &>/dev/null; then echo "Error: glxinfo not found (install mesa-utils)"; else glxinfo 2>&1 | grep -E "OpenGL (vendor|renderer|version)" || echo "Error: glxinfo failed (Check X11/Display connection)"; fi'
 # Full GPU diagnostics (requires gpu_setup.sh)
 alias gpu_info='source ~/env/scripts/gpu_setup.sh && gpu_status'
-# GPU switching commands
-alias use_intel='export MESA_D3D12_DEFAULT_ADAPTER_NAME=Intel && echo "Switched to Intel GPU"'
-alias use_nvidia='export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA && echo "Switched to NVIDIA GPU"'
-alias use_cpu='export LIBGL_ALWAYS_SOFTWARE=1 && echo "Switched to CPU Software Rendering"'
+# GPU switching commands (wrappers for gpu_setup.sh)
+alias use_intel='source ~/env/scripts/gpu_setup.sh intel'
+alias use_nvidia='source ~/env/scripts/gpu_setup.sh nvidia'
+alias use_cpu='source ~/env/scripts/gpu_setup.sh cpu'
+alias gpu_auto='source ~/env/scripts/gpu_setup.sh auto'
 # GPU test (runs glxgears briefly)
 alias gpu_test='timeout 5 glxgears -info 2>&1 | head -10 || echo "GPU test failed"'

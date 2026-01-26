@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     terminator \
     htop \
+    psmisc \
     dbus-x11 \
     mesa-utils \
     libgl1-mesa-glx \

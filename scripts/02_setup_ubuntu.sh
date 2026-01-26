@@ -39,8 +39,13 @@ install_base_packages
 install_docker
 enable_docker_service
 
-# 3. GPU Support
-install_nvidia_toolkit
+# 3. GPU Support (Native Linux only)
+# WSL2 uses D3D12/dxg for GPU passthrough, not nvidia-container-toolkit
+if [ "$IS_WSL" = false ]; then
+    install_nvidia_toolkit
+else
+    log_info "Skipping NVIDIA Container Toolkit (WSL2 uses D3D12 GPU passthrough)"
+fi
 
 # 4. User Configuration
 setup_user "$TARGET_USER"

@@ -84,11 +84,37 @@ init_rosdep() {
     fi
 }
 
+init_gpu() {
+    # GPU Setup: Auto-detect and configure for optimal rendering
+    local gpu_script="$CONFIG_DIR/../scripts/gpu_setup.sh"
+    
+    if [ -f "$gpu_script" ]; then
+        log "Initializing GPU configuration..."
+        # Source the script to set environment variables
+        source "$gpu_script"
+        # Run auto-detection
+        setup_gpu auto 2>/dev/null || true
+        
+        # Log GPU status
+        local renderer
+        renderer=$(glxinfo 2>/dev/null | grep "OpenGL renderer" | cut -d: -f2 | xargs || echo "unknown")
+        if echo "$renderer" | grep -qi "llvmpipe\|software"; then
+            log "GPU: Software rendering (CPU fallback)"
+        else
+            log "GPU: Hardware accelerated - $renderer"
+        fi
+    else
+        log "GPU setup script not found, skipping GPU configuration."
+    fi
+}
+
 # --- Main ---
 
 ensure_workspace_structure
 setup_environment_file
 setup_terminator
 init_rosdep
+init_gpu
 
 log "Workspace Ready!"
+

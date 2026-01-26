@@ -6,3 +6,7 @@ guiApplications=true
 networkingMode=mirrored
 dnsTunneling=true
 firewall=true
+
+# GPU Passthrough Optimization
+# Disable nested virtualization for better GPU performance
+nestedVirtualization=false

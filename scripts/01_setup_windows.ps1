@@ -169,10 +169,10 @@ function Get-SystemHealth {
     }
 }
 
-function Update-DevContainer-Hardware {
+function Validate-DevContainer-GpuMounts {
     param([hashtable]$HardwareProfile)
 
-    Log-Info "Configuring Dev Container runtime args..."
+    Log-Info "Validating Dev Container configuration..."
     if ($HardwareProfile) { Log-Info "Hardware Context: $($HardwareProfile.Description)" }
 
     $devContainerFile = Join-Path (Split-Path $ScriptDir -Parent) $SetupConfig.DevContainerPath
@@ -183,42 +183,30 @@ function Update-DevContainer-Hardware {
     }
 
     $content = Get-Content -Path $devContainerFile -Raw
-    $originalContent = $content
 
-    # 1. Handle NVIDIA Specific Args
-    # If Hardware has Nvidia, we ensure "--gpus=all" is present (uncommented)
-    # If Hardware has NO Nvidia, we ensure "--gpus=all" is commented out or removed
-    
-    if ($HardwareProfile.HasNvidia) {
-        # Enable it: Replace commented out version with active version
-        if ($content -match '//\s*"--gpus=all"') {
-             $content = $content -replace '//\s*"--gpus=all"', '"--gpus=all"'
-             Log-Info "Enabled NVIDIA GPU flags."
-        }
-    } else {
-        # Disable it: Comment it out if it's active
-        # We look for "--gpus=all" acting as a value in the array
-        if ($content -match '^\s*"--gpus=all"') {
-             $content = $content -replace '^\s*"--gpus=all"', '// "--gpus=all"'
-             Log-Info "Disabled NVIDIA GPU flags (Not detected)."
-        } elseif ($content -match '\s{4,}"--gpus=all"') {
-             $content = $content -replace '"--gpus=all"', '// "--gpus=all"'
-             Log-Info "Disabled NVIDIA GPU flags (Not detected)."
+    # NOTE: GPU configuration is now handled at runtime by gpu_setup.sh
+    # WSL2 uses D3D12/dxg for GPU passthrough, not --gpus=all (NVIDIA Container Toolkit)
+    # The runtime script auto-detects Intel/NVIDIA/AMD and sets appropriate environment variables
+
+    # Verify Critical WSL2 GPU Mounts
+    $requiredMounts = @(
+        "/usr/lib/wsl/lib",  # WSL2 GPU drivers
+        "/mnt/wslg",          # WSLg Wayland/Audio
+        "/dev/dxg"            # GPU device
+    )
+
+    $missingMounts = @()
+    foreach ($mount in $requiredMounts) {
+        if ($content -notmatch [regex]::Escape($mount)) {
+            $missingMounts += $mount
         }
     }
 
-    # 2. Verify Universal Mounts (Always Required)
-    if ($content -notmatch "/usr/lib/wsl/lib") {
-        Log-Warn "MISSING: /usr/lib/wsl/lib mount in devcontainer.json. Attempting to fix..."
-        # This is a complex patch, for now just warn. simpler to rely on the static file having it.
-        Log-Error "The devcontainer.json is outdated. Please pull the latest version or manually add the WSL driver mounts."
-    }
-
-    if ($content -ne $originalContent) {
-        Set-Content -Path $devContainerFile -Value $content -NoNewline
-        Log-Success "Updated devcontainer.json configuration."
+    if ($missingMounts.Count -gt 0) {
+        Log-Warn "MISSING GPU mounts in devcontainer.json: $($missingMounts -join ', ')"
+        Log-Warn "Please update devcontainer.json to include required WSL2 GPU mounts."
     } else {
-        Log-Success "DevContainer configuration is already optimal."
+        Log-Success "DevContainer GPU configuration validated."
     }
 }
 
@@ -226,7 +214,7 @@ function Configure-HardwareEnvironment {
     $hw = Get-HardwareProfile
     Log-Success "Hardware Detected: $($hw.Description)"
     
-    Update-DevContainer-Hardware -HardwareProfile $hw
+    Validate-DevContainer-GpuMounts -HardwareProfile $hw
 }
 
 function Verify-WslDriverProjection {

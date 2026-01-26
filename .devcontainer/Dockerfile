@@ -34,13 +34,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Intel NPU & GPU Compute (OpenCL / OneAPI)
     intel-opencl-icd \
     clinfo \
-    # NVIDIA Compute Utilities
-    libnvidia-compute-535 \
     # Hardware Monitoring Tools
     intel-gpu-tools \
     nvtop \
     mesa-utils \
     vulkan-tools \
+    # EGL/Wayland Support (Qt6/Modern GUI Apps)
+    libegl1-mesa-dev \
+    libxkbcommon0 \
+    libwayland-client0 \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -68,8 +70,10 @@ ENV CCACHE_DIR="/home/$USERNAME/.ccache"
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 4. Create User & Grant Sudo
+# Add user to render/video groups for GPU access
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+    && usermod -aG render,video $USERNAME 2>/dev/null || true \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
@@ -80,11 +84,9 @@ RUN mkdir -p /home/$USERNAME/.config/terminator \
 
 # 6. Environment Setup
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc \
-    && echo "export RCUTILS_COLORIZED_OUTPUT=1" >> /home/$USERNAME/.bashrc \
-    # Hardware Switching Aliases
-    && echo 'alias use_intel="export MESA_D3D12_DEFAULT_ADAPTER_NAME=Intel && echo \"Switched to Intel Iris Xe/NPU\""' >> /home/$USERNAME/.bashrc \
-    && echo 'alias use_nvidia="export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA && echo \"Switched to NVIDIA RTX\""' >> /home/$USERNAME/.bashrc \
-    && echo 'alias use_cpu="export LIBGL_ALWAYS_SOFTWARE=1 && echo \"Switched to CPU Only Mode\""' >> /home/$USERNAME/.bashrc
+    && echo "export RCUTILS_COLORIZED_OUTPUT=1" >> /home/$USERNAME/.bashrc
+    # NOTE: GPU switching aliases (use_intel, use_nvidia, use_cpu) are managed in config/aliases.sh
+    # They are loaded at runtime via init_workspace.sh -> .ros_env
 
 # 7. Create Workspace Directory
 WORKDIR /home/$USERNAME/ros_ws

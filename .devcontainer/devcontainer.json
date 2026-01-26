@@ -9,11 +9,11 @@
     "runArgs": [
         "--network=host",
         "--privileged",
+        // IPC host mode for Qt/GTK shared memory (fixes SHM errors)
+        "--ipc=host",
         // Windows GPU/NPU Universal Connector
         "--device=/dev/dxg",
         "--device=/dev/dri",
-        // NVIDIA Runtime (ignored if not present/configured)
-        "--gpus=all",
         "-e",
         "DISPLAY=${env:DISPLAY}"
     ],
@@ -27,14 +27,26 @@
         // Mount X11 socket for GUI (WSLg support)
         "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind",
         // CRITICAL: Mount Windows Host Driver Store for WSL2 hardware projection
-        "source=/usr/lib/wsl/lib,target=/usr/lib/wsl/lib,type=bind"
+        "source=/usr/lib/wsl/lib,target=/usr/lib/wsl/lib,type=bind",
+        // WSLg Wayland/Audio support (enhanced GUI compatibility)
+        "source=/mnt/wslg,target=/mnt/wslg,type=bind,readonly"
     ],
     "containerEnv": {
+        // Display settings
         "DISPLAY": ":0",
-        "LIBGL_ALWAYS_SOFTWARE": "0",
+        // WSL2 Driver path
         "LD_LIBRARY_PATH": "/usr/lib/wsl/lib:${env:LD_LIBRARY_PATH}",
-        // Default to Intel (Widest compatibility for laptops)
+        // GPU Rendering: Use D3D12 driver for WSL2
+        "LIBGL_ALWAYS_INDIRECT": "0",
+        "MESA_LOADER_DRIVER_OVERRIDE": "d3d12",
+        "GALLIUM_DRIVER": "d3d12",
+        // Default GPU adapter (Intel for laptop compatibility)
         "MESA_D3D12_DEFAULT_ADAPTER_NAME": "Intel",
+        // WSLg Wayland/Audio integration
+        "XDG_RUNTIME_DIR": "/mnt/wslg/runtime-dir",
+        "WAYLAND_DISPLAY": "wayland-0",
+        "PULSE_SERVER": "/mnt/wslg/PulseServer",
+        // Qt compatibility
         "QT_X11_NO_MITSHM": "1"
     },
     "customizations": {

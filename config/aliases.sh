@@ -21,3 +21,15 @@ alias d='docker'
 alias rt='ros2 topic list'
 alias rn='ros2 node list'
 alias rqt='rqt'
+
+# --- GPU Management ---
+# Quick GPU status check
+alias gpu_check='glxinfo 2>/dev/null | grep -E "OpenGL (vendor|renderer|version)" || echo "glxinfo not available"'
+# Full GPU diagnostics (requires gpu_setup.sh)
+alias gpu_info='source ~/env/scripts/gpu_setup.sh && gpu_status'
+# GPU switching commands
+alias use_intel='export MESA_D3D12_DEFAULT_ADAPTER_NAME=Intel && echo "Switched to Intel GPU"'
+alias use_nvidia='export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA && echo "Switched to NVIDIA GPU"'
+alias use_cpu='export LIBGL_ALWAYS_SOFTWARE=1 && echo "Switched to CPU Software Rendering"'
+# GPU test (runs glxgears briefly)
+alias gpu_test='timeout 5 glxgears -info 2>&1 | head -10 || echo "GPU test failed"'

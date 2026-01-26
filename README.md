@@ -153,7 +153,7 @@ NVIDIA 그래픽 카드가 있는 경우, 시뮬레이션 성능을 위해 GPU �
 │   ├── aliases.sh          # 컨테이너에 주입될 Bash 별칭(Alias) 모음
 │   ├── terminator_config   # GUI 터미널 레이아웃 및 단축키 설정
 │   └── wsl.conf            # 각 배포판 부팅 설정 (Systemd 등)
-├── docker/                 # Dev Container 정의
+├── .devcontainer/          # Dev Container 정의
 │   ├── Dockerfile          # ROS2 Humble + Gazebo + Utils 이미지 설계도
 │   └── devcontainer.json   # VS Code 연동 및 볼륨 마운트 설정
 ├── scripts/                # 자동화 스크립트 (모듈화됨)
@@ -163,16 +163,52 @@ NVIDIA 그래픽 카드가 있는 경우, 시뮬레이션 성능을 위해 GPU �
 │   ├── install_config.ps1  # [설정] Windows 설치 설정 (버전, 경로 등)
 │   ├── install_config.sh   # [설정] Linux 설치 설정 (패키지 목록 등)
 │   ├── 01_setup_windows.ps1   # [Windows용] 설치 진입점 (Entry Point)
-│   ├── setup_linux.sh      # [내부용] WSL 초기 세팅 및 패키지 설치
+│   ├── 02_setup_ubuntu.sh     # [Linux용] WSL 초기 세팅 및 패키지 설치
+│   ├── sync_to_wsl.ps1        # [Windows용] 설정 동기화 (Split-Brain 대응)
 │   └── init_workspace.sh   # [내부용] 컨테이너 실행 시 환경 초기화
 └── README.md
+```
+
+## 🏗️ 아키텍처 및 데이터 흐름
+
+이 프로젝트는 **Windows (설치) -> WSL2 (실행) -> Dev Container (개발)** 의 3단계 레이어 구조를 가집니다.
+가장 효율적인 IO 성능을 위해 Windows 파일 시스템이 아닌 **WSL2 Native 파일 시스템**에서 모든 작업이 이루어집니다.
+
+```mermaid
+classDiagram
+    direction LR
+    class Windows_Host {
+        C:\...\02_lab (Installer)
+        Launcher Only
+    }
+    class WSL2_Filesystem {
+        ~/env (Config Repo)
+        ~/ros_ws (User Code)
+        Ext4 Performance
+    }
+    class Dev_Container {
+        /home/ros/env
+        /home/ros/ros_ws
+        Build & Run
+    }
+
+    Windows_Host ..> WSL2_Filesystem : "1. Copy Code (One-way)"
+    WSL2_Filesystem --|> Dev_Container : "2. Bind Mount (Config)"
+    WSL2_Filesystem --|> Dev_Container : "3. Bind Mount (Code)"
+
+    note for Windows_Host "주의: 이곳에서의 수정은\n자동 반영되지 않습니다!"
 ```
 
 ## 🔧 사용자 설정
 
 - **단축키/Alias 수정**: `config/aliases.sh`를 수정하세요. 새 터미널을 열면 즉시 적용됩니다.
 - **터미널 레이아웃**: `config/terminator_config`를 수정하여 Terminator 설정을 변경할 수 있습니다.
-- **패키지 추가**: `docker/Dockerfile`의 `apt-get install` 목록에 패키지를 추가하고 컨테이너를 재빌드(`Rebuild Container`)하세요.
+- **패키지 추가**: `.devcontainer/Dockerfile`의 `apt-get install` 목록에 패키지를 추가하고 컨테이너를 재빌드(`Rebuild Container`)하세요.
+- **설정 동기화 (Windows 수정 시)**: Windows에서 설정 파일(`config/`, `scripts/` 등)을 수정했다면 다음 명령어로 WSL에 반영하세요.
+  ```powershell
+  # Windows PowerShell
+  .\scripts\sync_to_wsl.ps1
+  ```
 
 ## ⚡ 성능 팁
 

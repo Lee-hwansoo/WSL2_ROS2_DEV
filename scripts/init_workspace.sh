@@ -16,6 +16,15 @@ log() { echo -e "\033[0;35m$LOG_PREFIX $1\033[0m"; }
 
 # --- Functions ---
 
+ensure_workspace_structure() {
+    # If the bind mount is empty or missing, auto-create the src directory
+    # so colcon build doesn't fail.
+    if [ ! -d "$WS_DIR/src" ]; then
+        log "Creating workspace source directory: $WS_DIR/src"
+        mkdir -p "$WS_DIR/src"
+    fi
+}
+
 setup_environment_file() {
     # robust approach: generate a dedicated env file and source it from .bashrc
     local env_file="$HOME/.ros_env"
@@ -77,6 +86,7 @@ init_rosdep() {
 
 # --- Main ---
 
+ensure_workspace_structure
 setup_environment_file
 setup_terminator
 init_rosdep

@@ -35,6 +35,23 @@ setup_environment_file() {
 # Auto-generated environment config
 export DOCKER_HOST=unix:///var/run/docker.sock
 
+# Ensure XDG_RUNTIME_DIR exists and is writable
+export XDG_RUNTIME_DIR=/tmp/runtime-ros
+if [ ! -d "\$XDG_RUNTIME_DIR" ]; then
+    mkdir -p "\$XDG_RUNTIME_DIR"
+    chmod 0700 "\$XDG_RUNTIME_DIR"
+fi
+
+# Link Wayland socket if available in WSLg
+if [ -d "/mnt/wslg/runtime-dir" ] && [ ! -S "\$XDG_RUNTIME_DIR/wayland-0" ]; then
+    ln -sf /mnt/wslg/runtime-dir/wayland-0 "\$XDG_RUNTIME_DIR/wayland-0"
+fi
+
+# Auto-configure GPU (Dynamic)
+if [ -f "$CONFIG_DIR/../scripts/gpu_setup.sh" ]; then
+    source "$CONFIG_DIR/../scripts/gpu_setup.sh" auto
+fi
+
 # Load Aliases
 if [ -f "$CONFIG_DIR/aliases.sh" ]; then
     source "$CONFIG_DIR/aliases.sh"

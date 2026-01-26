@@ -32,18 +32,7 @@
         "source=/mnt/wslg,target=/mnt/wslg,type=bind,readonly"
     ],
     "containerEnv": {
-        // Display settings
-        "DISPLAY": ":0",
-        // WSL2 Driver path
-        "LD_LIBRARY_PATH": "/usr/lib/wsl/lib:${env:LD_LIBRARY_PATH}",
-        // GPU Rendering: Use D3D12 driver for WSL2
-        "LIBGL_ALWAYS_INDIRECT": "0",
-        "MESA_LOADER_DRIVER_OVERRIDE": "d3d12",
-        "GALLIUM_DRIVER": "d3d12",
-        // Default GPU adapter (Intel for laptop compatibility)
-        "MESA_D3D12_DEFAULT_ADAPTER_NAME": "Intel",
         // WSLg Wayland/Audio integration
-        "XDG_RUNTIME_DIR": "/mnt/wslg/runtime-dir",
         "WAYLAND_DISPLAY": "wayland-0",
         "PULSE_SERVER": "/mnt/wslg/PulseServer",
         // Qt compatibility

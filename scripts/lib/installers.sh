@@ -88,6 +88,16 @@ setup_user() {
     # Ensure groups
     usermod -aG sudo,docker "$username"
     
+    # Fix systemd user session (Enable Linger)
+    log_info "Enabling systemd linger for $username..."
+    if pidof systemd > /dev/null; then
+        loginctl enable-linger "$username" || true
+    else
+        # Fallback: Create the linger file manually if systemd isn't running yet (Bootstrap phase)
+        mkdir -p /var/lib/systemd/linger
+        touch "/var/lib/systemd/linger/$username"
+    fi
+    
     # Fix permissions
     setup_workspace_permissions "$username"
 }

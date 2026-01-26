@@ -233,22 +233,27 @@ setup_gpu() {
     esac
     
     # Verify setup
-    local renderer_raw
-    renderer_raw=$(glxinfo 2>/dev/null | grep "OpenGL renderer" || true)
+    # Note: During container initialization (postCreateCommand), X11 might not be ready yet.
+    # This is often normal and will work in an interactive shell.
     
-    local renderer
-    if [ -n "$renderer_raw" ]; then
-        renderer=$(echo "$renderer_raw" | cut -d: -f2 | xargs)
-    else
-        renderer="unknown"
+    local glx_output
+    if ! glx_output=$(glxinfo 2>&1); then
+        # Capture the first line of error (e.g., "Error: unable to open display :0")
+        local err_msg=$(echo "$glx_output" | head -n 1)
+        log_warn "GPU verification skipped (X11 not ready): $err_msg"
+        log_info "Note: This is normal during initialization. Please check 'gpu_check' in a new terminal."
+        return
     fi
+
+    local renderer
+    renderer=$(echo "$glx_output" | grep "OpenGL renderer" | cut -d: -f2 | xargs)
     
-    if echo "$renderer" | grep -qi "llvmpipe\|software"; then
+    if [ -z "$renderer" ]; then
+        log_warn "GPU status unknown: glxinfo returned empty renderer string."
+    elif echo "$renderer" | grep -qi "llvmpipe\|software"; then
         if [ "$force_mode" != "cpu" ] && [ "$force_mode" != "software" ]; then
             log_warn "GPU acceleration unavailable, using software rendering: $renderer"
         fi
-    elif [ "$renderer" == "unknown" ]; then
-        log_warn "GPU status unknown: glxinfo failed (X11 check needed)"
     else
         log_ok "GPU rendering active: $renderer"
     fi

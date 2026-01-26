@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup_ubuntu.sh
+# 02_setup_ubuntu.sh
 # Main entry point for bootstrapping Ubuntu (WSL2 or Native)
 
 set -e

@@ -280,7 +280,7 @@ function Bootstrap-Linux {
     # e.g. C:\Users\... -> /mnt/c/Users/...
     $driveLetter = $ScriptDir.Substring(0,1).ToLower()
     $relativePath = $ScriptDir.Substring(3).Replace("\", "/")
-    $linuxScript = "/mnt/$driveLetter/$relativePath/setup_ubuntu.sh"
+    $linuxScript = "/mnt/$driveLetter/$relativePath/02_setup_ubuntu.sh"
 
     # We must ensure line endings of linux script are LF if we run it directly? 
     # Usually WSL handles it, but safer to run via bash

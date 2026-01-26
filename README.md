@@ -5,7 +5,7 @@ Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
 
 ## 🚀 주요 기능
 
-- **원클릭 설치 (One-Click Setup)**: `setup_windows.ps1` 스크립트 하나로 WSL 활성화, 커널 업데이트, Ubuntu 설치, 드라이버 설정을 한 번에 완료합니다.
+- **원클릭 설치 (One-Click Setup)**: `01_setup_windows.ps1` 스크립트 하나로 WSL 활성화, 커널 업데이트, Ubuntu 설치, 드라이버 설정을 한 번에 완료합니다.
 - **스마트 드라이브 감지**: 용량이 부족한 `C:\` 대신 여유 있는 `D:\` 드라이브를 자동으로 감지하여 리눅스를 설치합니다.
 - **성능 최적화 (Performance Optimized)**:
   - **WSL2**: `systemd` 지원, `mirrored` 네트워킹 모드, 메모리 최적화(8GB 제한)가 기본 적용되어 있습니다.
@@ -33,13 +33,13 @@ Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
 
 ```powershell
 # PowerShell (관리자 권한)
-.\scripts\setup_windows.ps1
+.\scripts\01_setup_windows.ps1
 
 # [옵션] 드라이 런 (실행하지 않고 로그만 확인)
-.\scripts\setup_windows.ps1 -DryRun
+.\scripts\01_setup_windows.ps1 -DryRun
 
 # [옵션] 다른 배포판 이름으로 설치
-.\scripts\setup_windows.ps1 -DistroName "My-ROS-Bot"
+.\scripts\01_setup_windows.ps1 -DistroName "My-ROS-Bot"
 ```
 
 **스크립트 수행 작업:**
@@ -74,7 +74,7 @@ WSL이 아닌 일반 Ubuntu 컴퓨터에서도 동일한 환경을 구축할 수
 
 1.  **스크립트 실행**:
     ```bash
-    sudo bash scripts/setup_ubuntu.sh
+    sudo bash scripts/02_setup_ubuntu.sh
     ```
 2.  **VS Code 실행**:
     ```bash
@@ -162,7 +162,7 @@ NVIDIA 그래픽 카드가 있는 경우, 시뮬레이션 성능을 위해 GPU �
 │   │   └── installers.sh   # 패키지 설치 로직 분리
 │   ├── install_config.ps1  # [설정] Windows 설치 설정 (버전, 경로 등)
 │   ├── install_config.sh   # [설정] Linux 설치 설정 (패키지 목록 등)
-│   ├── setup_windows.ps1   # [Windows용] 설치 진입점 (Entry Point)
+│   ├── 01_setup_windows.ps1   # [Windows용] 설치 진입점 (Entry Point)
 │   ├── setup_linux.sh      # [내부용] WSL 초기 세팅 및 패키지 설치
 │   └── init_workspace.sh   # [내부용] 컨테이너 실행 시 환경 초기화
 └── README.md

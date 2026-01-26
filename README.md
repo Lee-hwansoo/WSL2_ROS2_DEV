@@ -177,6 +177,7 @@ RViz2나 Gazebo 실행 시 `BadValue` 등의 에러가 발생한다면, 먼저 `
 │   ├── 01_setup_windows.ps1   # [Windows용] 설치 진입점 (Entry Point)
 │   ├── 02_setup_ubuntu.sh     # [Linux용] WSL 초기 세팅 및 패키지 설치
 │   ├── sync_to_wsl.ps1        # [Windows용] 설정 동기화 (Split-Brain 대응)
+│   ├── gpu_setup.sh        # [GPU] 드라이버 자동 감지 및 환경 설정
 │   └── init_workspace.sh   # [내부용] 컨테이너 실행 시 환경 초기화
 └── README.md
 ```

@@ -23,8 +23,8 @@ alias rn='ros2 node list'
 alias rqt='rqt'
 
 # --- GPU Management ---
-# Quick GPU status check
-alias gpu_check='glxinfo 2>/dev/null | grep -E "OpenGL (vendor|renderer|version)" || echo "glxinfo not available"'
+# Quick GPU status check (Updated for better error reporting)
+alias gpu_check='if ! command -v glxinfo &>/dev/null; then echo "Error: glxinfo not found (install mesa-utils)"; else glxinfo 2>&1 | grep -E "OpenGL (vendor|renderer|version)" || echo "Error: glxinfo failed (Check X11/Display connection)"; fi'
 # Full GPU diagnostics (requires gpu_setup.sh)
 alias gpu_info='source ~/env/scripts/gpu_setup.sh && gpu_status'
 # GPU switching commands

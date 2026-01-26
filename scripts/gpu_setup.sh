@@ -12,7 +12,8 @@
 set -e
 
 # --- Configuration ---
-LOG_PREFIX="[GPU-Setup]"
+# Prefix for logs from this script
+GPU_LOG_PREFIX="[GPU-Setup]"
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,10 +23,10 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # --- Logging Functions ---
-log_info()  { echo -e "${BLUE}${LOG_PREFIX}${NC} $1"; }
-log_ok()    { echo -e "${GREEN}${LOG_PREFIX}${NC} ✓ $1"; }
-log_warn()  { echo -e "${YELLOW}${LOG_PREFIX}${NC} ⚠ $1"; }
-log_error() { echo -e "${RED}${LOG_PREFIX}${NC} ✗ $1"; }
+log_info()  { echo -e "${BLUE}${GPU_LOG_PREFIX}${NC} $1"; }
+log_ok()    { echo -e "${GREEN}${GPU_LOG_PREFIX}${NC} ✓ $1"; }
+log_warn()  { echo -e "${YELLOW}${GPU_LOG_PREFIX}${NC} ⚠ $1"; }
+log_error() { echo -e "${RED}${GPU_LOG_PREFIX}${NC} ✗ $1"; }
 
 # --- GPU Detection Functions ---
 
@@ -149,7 +150,15 @@ gpu_status() {
     
     # OpenGL renderer
     local renderer
-    renderer=$(glxinfo 2>/dev/null | grep "OpenGL renderer" | cut -d: -f2 | xargs)
+    local renderer_raw
+    renderer_raw=$(glxinfo 2>/dev/null | grep "OpenGL renderer" || true)
+
+    if [ -n "$renderer_raw" ]; then
+        renderer=$(echo "$renderer_raw" | cut -d: -f2 | xargs)
+    else
+        renderer="unknown"
+    fi
+
     if [ -n "$renderer" ]; then
         if echo "$renderer" | grep -qi "llvmpipe\|software"; then
             log_warn "OpenGL renderer: $renderer (SOFTWARE)"

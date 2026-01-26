@@ -120,51 +120,98 @@ function Update-GlobalWslConfig {
     }
 }
 
-function Configure-DevContainer-GPU {
-    Log-Info "Checking GPU availability for Dev Container..."
-    
-    # Simple check for NVIDIA driver service or SMI
-    $hasNvidia = $false
+function Get-HardwareProfile {
+    $profile = @{
+        HasNvidia = $false
+        HasIntel  = $false
+        HasNPU    = $false
+        Description = ""
+    }
+
     try {
-        if (Get-Command "nvidia-smi" -ErrorAction SilentlyContinue) { $hasNvidia = $true }
+        if (Get-Command "nvidia-smi" -ErrorAction SilentlyContinue) { 
+            $profile.HasNvidia = $true 
+            $profile.Description += "[NVIDIA RTX] "
+        }
     } catch {}
 
-    $devContainerFile = Join-Path (Split-Path $ScriptDir -Parent) $SetupConfig.DevContainerPath
+    try {
+        $video = Get-CimInstance Win32_VideoController
+        foreach ($v in $video) {
+            if ($v.Name -match "Intel" -or $v.Name -match "Iris") {
+                $profile.HasIntel = $true
+                $profile.Description += "[Intel Iris/Arc] "
+            }
+        }
+    } catch {}
+
+    # NPU Detection (Simple heuristics for Intel AI Boost / NPU devices)
+    try {
+        if (Get-PnpDevice -FriendlyName "*NPU*" -ErrorAction SilentlyContinue) {
+            $profile.HasNPU = $true
+            $profile.Description += "[Intel NPU] "
+        }
+    } catch {}
     
+    if ($profile.Description -eq "") { $profile.Description = "[CPU Only]" }
+    
+    return $profile
+}
+
+function Get-SystemHealth {
+    Log-Info "Running System Health 'Doctor' Checks..."
+    
+    # WSL Version Check
+    $wslStatus = wsl --status
+    if ($wslStatus -match "Kernel version: 5\.10\.102\.1") {
+        # This is a loose check, mainly we want to ensure it's not ancient
+        Log-Info "wsl kernel looks up to date."
+    }
+}
+
+function Verify-DevContainerConfig {
+    param([hashtable]$HardwareProfile)
+
+    Log-Info "Verifying Dev Container Config for detected hardware..."
+    if ($HardwareProfile) { Log-Info "Hardware Context: $($HardwareProfile.Description)" }
+
+    $devContainerFile = Join-Path (Split-Path $ScriptDir -Parent) $SetupConfig.DevContainerPath
+
     if (-not (Test-Path $devContainerFile)) {
         Log-Warn "devcontainer.json not found at $devContainerFile"
         return
     }
 
-    if ($DryRun) { 
-        Log-Info "[DRY-RUN] Would update devcontainer.json (GPU: $hasNvidia)"
-        return 
-    }
-
     $content = Get-Content -Path $devContainerFile -Raw
-    $newContent = $content
-
-    if ($hasNvidia) {
-        Log-Success "NVIDIA GPU Detected. Enabling GPU support in devcontainer.json."
-        # Uncomment "// "--gpus=all"" -> ""--gpus=all""
-        # Regex to handle potential existing variations
-        $newContent = $newContent -replace '//\s*"--gpus=all"', '"--gpus=all"'
-    } else {
-        Log-Warn "No NVIDIA GPU Detected. Disabling GPU support."
-        # Comment out ""--gpus=all"" -> "// "--gpus=all""
-        # Make sure we don't double comment
-        $newContent = $newContent -replace '^\s*"--gpus=all"', '// "--gpus=all"'
-        # Also clean up previous comments to standard format if needed, but simple replace is safer.
-        # Actually, let's just valid JSON string replace.
-        if ($newContent -match '\s{6,}"--gpus=all"') {
-             $newContent = $newContent -replace '"--gpus=all"', '// "--gpus=all"'
-        }
-    }
     
-    if ($content -ne $newContent) {
-        Set-Content -Path $devContainerFile -Value $newContent -NoNewline
-        Log-Info "Updated devcontainer.json."
+    # Validation: Check for Critical Mounts
+    if ($content -notmatch "/usr/lib/wsl/lib") {
+        Log-Warn "MISSING: /usr/lib/wsl/lib mount in devcontainer.json. Capabilities will be limited."
+        Log-Warn "Please adhere to the Universal Configuration."
+    } else {
+        Log-Success "DevContainer configuration looks correct (Universal Mode)."
     }
+}
+
+function Verify-HardwareEnvironment {
+    $hw = Get-HardwareProfile
+    Log-Success "Hardware Detected: $($hw.Description)"
+    
+    Verify-DevContainerConfig -HardwareProfile $hw
+}
+
+function Verify-WslDriverProjection {
+    param([string]$DistroName)
+    Log-Info "Verifying Driver Projection..."
+    try {
+        $check = wsl -d $DistroName -- ls /usr/lib/wsl/lib/libd3d12.so 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Log-Success "Driver Projection (/usr/lib/wsl/lib) verified active in WSL."
+        } else {
+            Log-Warn "Driver Projection NOT active in WSL. GPU acceleration may fail."
+            Log-Warn "Try 'wsl --update' and reboot."
+        }
+    } catch {}
 }
 
 function Install-WslDistro {
@@ -264,11 +311,13 @@ try {
     if (-not $DryRun) { wsl --update }
 
     Update-GlobalWslConfig
-    Configure-DevContainer-GPU
+    Verify-HardwareEnvironment
     
     Install-WslDistro
     Bootstrap-Linux
     Copy-Project-To-WSL
+
+    Verify-WslDriverProjection -DistroName $DistroName
 
     Log-Success "Setup Completed Successfully!"
     

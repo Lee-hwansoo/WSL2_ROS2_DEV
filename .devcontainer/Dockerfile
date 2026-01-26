@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     terminator \
     htop \
     dbus-x11 \
+    mesa-utils \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
     can-utils \
@@ -25,12 +26,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-ros-core \
     ros-humble-geometry2 \
     locales \
+    # Intel iGPU & Media Acceleration
+    intel-media-va-driver-non-free \
+    libmfx1 \
+    # Intel NPU & GPU Compute (OpenCL / OneAPI)
+    intel-opencl-icd \
+    clinfo \
+    # NVIDIA Compute Utilities
+    libnvidia-compute-535 \
+    # Hardware Monitoring Tools
+    intel-gpu-tools \
+    nvtop \
+    mesa-utils \
+    vulkan-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # 1.1 Configure Locales (Fix encoding issues)
 RUN locale-gen en_US.UTF-8 ko_KR.UTF-8
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
+
+# 1.2 Universal Hardware Environment
+# Force libGL/OpenCL to look in /usr/lib/wsl/lib for host drivers
+ENV LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
 
 # 2. Configure ccache (Speed up builds)
 ENV PATH="/usr/lib/ccache:$PATH"
@@ -52,7 +70,11 @@ RUN mkdir -p /home/$USERNAME/.config/terminator \
 
 # 6. Environment Setup
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc \
-    && echo "export RCUTILS_COLORIZED_OUTPUT=1" >> /home/$USERNAME/.bashrc
+    && echo "export RCUTILS_COLORIZED_OUTPUT=1" >> /home/$USERNAME/.bashrc \
+    # Hardware Switching Aliases
+    && echo 'alias use_intel="export MESA_D3D12_DEFAULT_ADAPTER_NAME=Intel && echo \"Switched to Intel Iris Xe/NPU\""' >> /home/$USERNAME/.bashrc \
+    && echo 'alias use_nvidia="export MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA && echo \"Switched to NVIDIA RTX\""' >> /home/$USERNAME/.bashrc \
+    && echo 'alias use_cpu="export LIBGL_ALWAYS_SOFTWARE=1 && echo \"Switched to CPU Only Mode\""' >> /home/$USERNAME/.bashrc
 
 # 7. Create Workspace Directory
 WORKDIR /home/$USERNAME/ros_ws

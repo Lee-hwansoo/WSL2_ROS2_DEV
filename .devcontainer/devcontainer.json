@@ -1,5 +1,5 @@
 {
-    "name": "ROS2 Hunter Dev Env",
+    "name": "ROS2 Dev Env",
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
@@ -9,6 +9,10 @@
     "runArgs": [
         "--network=host",
         "--privileged",
+        // Windows GPU/NPU Universal Connector
+        "--device=/dev/dxg",
+        "--device=/dev/dri",
+        // NVIDIA Runtime (ignored if not present/configured)
         "--gpus=all",
         "-e",
         "DISPLAY=${env:DISPLAY}"
@@ -21,11 +25,16 @@
         // Mount ccache volume for build performance
         "source=ros2_ccache,target=/home/ros/.ccache,type=volume",
         // Mount X11 socket for GUI (WSLg support)
-        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind",
+        // CRITICAL: Mount Windows Host Driver Store for WSL2 hardware projection
+        "source=/usr/lib/wsl/lib,target=/usr/lib/wsl/lib,type=bind"
     ],
     "containerEnv": {
         "DISPLAY": ":0",
-        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "LIBGL_ALWAYS_SOFTWARE": "0",
+        "LD_LIBRARY_PATH": "/usr/lib/wsl/lib:${env:LD_LIBRARY_PATH}",
+        // Default to Intel (Widest compatibility for laptops)
+        "MESA_D3D12_DEFAULT_ADAPTER_NAME": "Intel",
         "QT_X11_NO_MITSHM": "1"
     },
     "customizations": {

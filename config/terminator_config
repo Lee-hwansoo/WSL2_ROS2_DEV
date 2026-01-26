@@ -33,13 +33,19 @@
 
 [profiles]
     [[default]]
+        login_shell = True
+ 
+        font = Monospace 12
         background_color = "#1e1e1e"
-        cursor_color = "#aaaaaa"
-        foreground_color = "#dcdcdc"
-        font = Consolas 12
+        foreground_color = "#f8fafc"
         scrollback_infinite = True
         exit_action = hold
+
         show_titlebar = False
+        title_font = Monospace 12
+        title_transmit_bg_color = "#3a3a3a"
+        title_transmit_fg_color = "#f8fafc"
+        title_inactive_bg_color = "#1e1e1e"
 
 [layouts]
     [[default]]

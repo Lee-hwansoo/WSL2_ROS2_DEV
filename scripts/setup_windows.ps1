@@ -169,10 +169,10 @@ function Get-SystemHealth {
     }
 }
 
-function Verify-DevContainerConfig {
+function Update-DevContainer-Hardware {
     param([hashtable]$HardwareProfile)
 
-    Log-Info "Verifying Dev Container Config for detected hardware..."
+    Log-Info "Configuring Dev Container runtime args..."
     if ($HardwareProfile) { Log-Info "Hardware Context: $($HardwareProfile.Description)" }
 
     $devContainerFile = Join-Path (Split-Path $ScriptDir -Parent) $SetupConfig.DevContainerPath
@@ -183,21 +183,50 @@ function Verify-DevContainerConfig {
     }
 
     $content = Get-Content -Path $devContainerFile -Raw
+    $originalContent = $content
+
+    # 1. Handle NVIDIA Specific Args
+    # If Hardware has Nvidia, we ensure "--gpus=all" is present (uncommented)
+    # If Hardware has NO Nvidia, we ensure "--gpus=all" is commented out or removed
     
-    # Validation: Check for Critical Mounts
-    if ($content -notmatch "/usr/lib/wsl/lib") {
-        Log-Warn "MISSING: /usr/lib/wsl/lib mount in devcontainer.json. Capabilities will be limited."
-        Log-Warn "Please adhere to the Universal Configuration."
+    if ($HardwareProfile.HasNvidia) {
+        # Enable it: Replace commented out version with active version
+        if ($content -match '//\s*"--gpus=all"') {
+             $content = $content -replace '//\s*"--gpus=all"', '"--gpus=all"'
+             Log-Info "Enabled NVIDIA GPU flags."
+        }
     } else {
-        Log-Success "DevContainer configuration looks correct (Universal Mode)."
+        # Disable it: Comment it out if it's active
+        # We look for "--gpus=all" acting as a value in the array
+        if ($content -match '^\s*"--gpus=all"') {
+             $content = $content -replace '^\s*"--gpus=all"', '// "--gpus=all"'
+             Log-Info "Disabled NVIDIA GPU flags (Not detected)."
+        } elseif ($content -match '\s{4,}"--gpus=all"') {
+             $content = $content -replace '"--gpus=all"', '// "--gpus=all"'
+             Log-Info "Disabled NVIDIA GPU flags (Not detected)."
+        }
+    }
+
+    # 2. Verify Universal Mounts (Always Required)
+    if ($content -notmatch "/usr/lib/wsl/lib") {
+        Log-Warn "MISSING: /usr/lib/wsl/lib mount in devcontainer.json. Attempting to fix..."
+        # This is a complex patch, for now just warn. simpler to rely on the static file having it.
+        Log-Error "The devcontainer.json is outdated. Please pull the latest version or manually add the WSL driver mounts."
+    }
+
+    if ($content -ne $originalContent) {
+        Set-Content -Path $devContainerFile -Value $content -NoNewline
+        Log-Success "Updated devcontainer.json configuration."
+    } else {
+        Log-Success "DevContainer configuration is already optimal."
     }
 }
 
-function Verify-HardwareEnvironment {
+function Configure-HardwareEnvironment {
     $hw = Get-HardwareProfile
     Log-Success "Hardware Detected: $($hw.Description)"
     
-    Verify-DevContainerConfig -HardwareProfile $hw
+    Update-DevContainer-Hardware -HardwareProfile $hw
 }
 
 function Verify-WslDriverProjection {
@@ -311,7 +340,7 @@ try {
     if (-not $DryRun) { wsl --update }
 
     Update-GlobalWslConfig
-    Verify-HardwareEnvironment
+    Configure-HardwareEnvironment
     
     Install-WslDistro
     Bootstrap-Linux

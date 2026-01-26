@@ -18,8 +18,6 @@ BASE_PACKAGES=(
     "sudo"
     "lsb-release"
     "gnupg"
-    "dbus-user-session"
-    "pkg-config"
 )
 
 # Docker Settings

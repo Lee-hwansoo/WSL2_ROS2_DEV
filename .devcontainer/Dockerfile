@@ -40,12 +40,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nvtop \
     mesa-utils \
     vulkan-tools \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# 1.1 Configure Locales (Fix encoding issues)
+# 1.1 Configure Locales
 RUN locale-gen en_US.UTF-8 ko_KR.UTF-8
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
+
+# 1.1.5 Install D2Coding Font
+RUN mkdir -p /usr/share/fonts/truetype/d2coding \
+    && curl -L -o /tmp/d2coding.zip https://github.com/naver/d2codingfont/releases/download/VER1.3.2/D2Coding-Ver1.3.2-20180524.zip \
+    && unzip /tmp/d2coding.zip -d /usr/share/fonts/truetype/d2coding \
+    && rm /tmp/d2coding.zip \
+    && fc-cache -f -v
 
 # 1.2 Universal Hardware Environment
 # Force libGL/OpenCL to look in /usr/lib/wsl/lib for host drivers

@@ -233,13 +233,22 @@ setup_gpu() {
     esac
     
     # Verify setup
+    local renderer_raw
+    renderer_raw=$(glxinfo 2>/dev/null | grep "OpenGL renderer" || true)
+    
     local renderer
-    renderer=$(glxinfo 2>/dev/null | grep "OpenGL renderer" | cut -d: -f2 | xargs || echo "unknown")
+    if [ -n "$renderer_raw" ]; then
+        renderer=$(echo "$renderer_raw" | cut -d: -f2 | xargs)
+    else
+        renderer="unknown"
+    fi
     
     if echo "$renderer" | grep -qi "llvmpipe\|software"; then
         if [ "$force_mode" != "cpu" ] && [ "$force_mode" != "software" ]; then
-            log_warn "GPU acceleration unavailable, using software rendering"
+            log_warn "GPU acceleration unavailable, using software rendering: $renderer"
         fi
+    elif [ "$renderer" == "unknown" ]; then
+        log_warn "GPU status unknown: glxinfo failed (X11 check needed)"
     else
         log_ok "GPU rendering active: $renderer"
     fi

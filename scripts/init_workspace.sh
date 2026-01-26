@@ -94,15 +94,6 @@ init_gpu() {
         source "$gpu_script"
         # Run auto-detection
         setup_gpu auto 2>/dev/null || true
-        
-        # Log GPU status
-        local renderer
-        renderer=$(glxinfo 2>/dev/null | grep "OpenGL renderer" | cut -d: -f2 | xargs || echo "unknown")
-        if echo "$renderer" | grep -qi "llvmpipe\|software"; then
-            log "GPU: Software rendering (CPU fallback)"
-        else
-            log "GPU: Hardware accelerated - $renderer"
-        fi
     else
         log "GPU setup script not found, skipping GPU configuration."
     fi

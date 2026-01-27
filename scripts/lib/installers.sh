@@ -105,6 +105,26 @@ install_dev_tools() {
 }
 
 # =============================================================================
+# UV INSTALLATION (Python Tool)
+# =============================================================================
+install_uv() {
+    if command -v uv &>/dev/null; then
+        log_success "uv is already installed."
+        return 0
+    fi
+
+    log_info "Installing uv (Fast Python Installer)..."
+
+    # We will run this as the target user to ensure it goes to their home
+    local target_user="${1:-ros}"
+    
+    # Run installation as target user
+    su - "$target_user" -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    
+    log_success "uv installed."
+}
+
+# =============================================================================
 # USER & WORKSPACE SETUP
 # =============================================================================
 setup_user() {
@@ -176,8 +196,16 @@ if [ -f /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash ]; then
     source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
 fi
 
+# RMW Implementation (Middleware)
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
 # ROS2 Domain ID (change if needed)
 export ROS_DOMAIN_ID=0
+
+# ccache (compiler cache)
+if [ -d "/usr/lib/ccache" ]; then
+    export PATH="/usr/lib/ccache:$PATH"
+fi
 EOF
     fi
     

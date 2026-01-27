@@ -26,6 +26,7 @@ alias t='terminator'
 alias py='python3'
 alias g='git'
 alias ll='ls -alF'
+alias ccache-stat='ccache -s'
 
 # =============================================================================
 # ROS2 Commands

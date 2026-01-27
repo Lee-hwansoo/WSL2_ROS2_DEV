@@ -94,24 +94,41 @@ function Enable-WslFeatures {
 }
 
 function Install-WindowsDependencies {
-    Log-Info "Installing Windows dependencies..."
+    Log-Info "Checking Windows dependencies..."
     
-    foreach ($pkg in $SetupConfig.WindowsDependencies) {
+    foreach ($dep in $SetupConfig.WindowsDependencies) {
+        $pkgName = $dep.Name
+        $cmdCheck = $dep.CheckCommand
+        
         # Check if already installed
-        $installed = winget list --id $pkg 2>$null | Select-String $pkg
-        if ($installed) {
-            Log-Success "$pkg is already installed."
+        if (Get-Command $cmdCheck -ErrorAction SilentlyContinue) {
+            Log-Success "$pkgName is already installed."
             continue
         }
-        
-        Log-Info "Installing $pkg via winget..."
+
+        $msiUrl  = $dep.Url
+        $tempMsi = Join-Path $env:TEMP $dep.FileName
+
+        Log-Info "Downloading $pkgName..."
         if (-not $DryRun) {
-            winget install --id $pkg --accept-source-agreements --accept-package-agreements
-            if ($LASTEXITCODE -ne 0) {
-                Log-Warn "Failed to install $pkg. Please install manually."
-            } else {
-                Log-Success "$pkg installed."
+            try {
+                Invoke-WebRequest -Uri $msiUrl -OutFile $tempMsi -UseBasicParsing
+            } catch {
+                Log-Error "Failed to download $pkgName from $msiUrl"
+                continue
             }
+
+            Log-Info "Installing $pkgName (UAC prompt may appear)..."
+            # /passive: Shows progress bar but no user interaction needed
+            $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$tempMsi`" /passive" -PassThru -Wait
+            
+            if ($proc.ExitCode -eq 0) {
+                Log-Success "$pkgName installed successfully."
+            } else {
+                Log-Warn "$pkgName installation failed (Exit Code: $($proc.ExitCode))."
+            }
+            
+            Remove-Item $tempMsi -Force -ErrorAction SilentlyContinue
         }
     }
 }

@@ -174,6 +174,16 @@ DEV_PACKAGES=(
 )
 ```
 
+### Cyclone DDS (통신 미들웨어)
+
+기본적으로 `Cyclone DDS`가 활성화되어 있습니다. 변경하려면 `.bashrc`를 수정하세요:
+
+```bash
+# ~/.bashrc
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp  # (기본값)
+# export RMW_IMPLEMENTATION=rmw_fastrtps_cpp  # 원복 시
+```
+
 ### WSL 메모리/CPU 설정
 
 `config/.wslconfig` 수정:

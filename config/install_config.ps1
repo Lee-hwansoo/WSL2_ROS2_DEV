@@ -16,8 +16,13 @@ $SetupConfig = @{
         "VirtualMachinePlatform"
     )
 
-    # Windows Dependencies (installed via winget)
+    # Windows Dependencies (Direct MSI Download & Install)
     WindowsDependencies = @(
-        "usbipd-win"  # USB device sharing to WSL
+        @{
+            Name         = "usbipd-win"
+            CheckCommand = "usbipd"
+            Url          = "https://github.com/dorssel/usbipd-win/releases/download/v5.3.0/usbipd-win_5.3.0_x64.msi"
+            FileName     = "usbipd-win.msi"
+        }
     )
 }

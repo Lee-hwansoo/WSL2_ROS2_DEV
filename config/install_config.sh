@@ -18,6 +18,7 @@ BASE_PACKAGES=(
     "curl"
     "wget"
     "git"
+    "jq"
     "unzip"
     "can-utils"
     "net-tools"
@@ -27,15 +28,16 @@ BASE_PACKAGES=(
     "sudo"
     "lsb-release"
     "gnupg"
+    "tree"
     "software-properties-common"
 )
 
 # ROS2 packages
 ROS2_PACKAGES=(
     "ros-${ROS_DISTRO}-desktop-full"
-    "ros-${ROS_DISTRO}-gazebo-ros-pkgs"
-    "ros-${ROS_DISTRO}-ros-core"
-    "ros-${ROS_DISTRO}-geometry2"
+    "ros-${ROS_DISTRO}-rmw-cyclonedds-cpp"
+    "ros-${ROS_DISTRO}-xacro"
+    "ros-${ROS_DISTRO}-joint-state-publisher-gui"
     "python3-colcon-common-extensions"
     "python3-rosdep"
     "python3-vcstool"

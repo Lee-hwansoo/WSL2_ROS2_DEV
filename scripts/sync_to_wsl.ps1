@@ -30,16 +30,38 @@ $Cyan = [ConsoleColor]::Cyan
 $Reset = [ConsoleColor]::White
 
 function Log-Info($Message) { Write-Host "[Sync] $Message" -ForegroundColor $Cyan }
-function Log-Success($Message) { Write-Host "[Sync] ✓ $Message" -ForegroundColor $Green }
-function Log-Warn($Message) { Write-Host "[Sync] ⚠ $Message" -ForegroundColor $Yellow }
-function Log-Error($Message) { Write-Host "[Sync] ✗ $Message" -ForegroundColor $Red }
+function Log-Success($Message) { Write-Host "[Sync] $Message" -ForegroundColor $Green }
+function Log-Warn($Message) { Write-Host "[Sync] $Message" -ForegroundColor $Yellow }
+function Log-Error($Message) { Write-Host "[Sync] $Message" -ForegroundColor $Red }
 
 # --- Check WSL ---
 Log-Info "Checking WSL distribution: $DistroName"
-if (!(wsl --list --quiet | Select-String $DistroName)) {
+
+# --- Check WSL (Robust Encoding Fix) ---
+Log-Info "Checking WSL distribution: $DistroName"
+
+try {
+    # Run wsl.exe via .NET Process to control encoding explicitly
+    $StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $StartInfo.FileName = "wsl.exe"
+    $StartInfo.Arguments = "--list"
+    $StartInfo.RedirectStandardOutput = $true
+    $StartInfo.UseShellExecute = $false
+    $StartInfo.StandardOutputEncoding = [System.Text.Encoding]::Unicode # WSL outputs UTF-16
+    $StartInfo.CreateNoWindow = $true
+
+    $Process = [System.Diagnostics.Process]::Start($StartInfo)
+    $WslOutput = $Process.StandardOutput.ReadToEnd()
+    $Process.WaitForExit()
+} catch {
+    Log-Warn "Failed to check distro list via .NET method. Falling back to simple check..."
+    $WslOutput = wsl --list | Out-String
+}
+
+if ($WslOutput -notmatch $DistroName) {
     Log-Error "Distribution '$DistroName' not found!"
-    Write-Host "Available distributions:"
-    wsl --list
+    Write-Host "Raw Output (Debug):"
+    Write-Host $WslOutput
     exit 1
 }
 
@@ -94,13 +116,26 @@ $RobocopyArgs = @(
     "/XD"
 ) + $Excludes
 
+# --- Fix Permissions (Pre-Sync) ---
+Log-Info "Ensuring target directory permissions..."
+# Force ownership to 'ros' user (or default UID 1000) to allow Windows access
+# We use 'wsl -u root' to ensure we have permission to run chown
+wsl -d $DistroName -u root chown -R 1000:1000 "/home/ros/$TargetDir"
+
 try {
-    # Run Robocopy
+    # Run Robocopy using Call Operator (&) to handle spaces in paths correctly
     # Valid exit codes: 0-7 (Refer to Robocopy doc)
-    $Process = Start-Process -FilePath "robocopy" -ArgumentList $RobocopyArgs -NoNewWindow -PassThru -Wait
+    & robocopy $RobocopyArgs
     
-    if ($Process.ExitCode -ge 8) {
-        throw "Robocopy failed with exit code $($Process.ExitCode)"
+    # Robocopy exit codes:
+    # 0: No errors occurred, and no copying was done.
+    # 1: One or more files were copied successfully.
+    # 2: Some Extra files or directories were detected.
+    # 4: Some Mismatched files or directories were detected.
+    # 8: Some files or directories could not be copied.
+    
+    if ($LASTEXITCODE -ge 8) {
+        throw "Robocopy failed with exit code $LASTEXITCODE"
     }
     
     Log-Success "Synchronization complete!"

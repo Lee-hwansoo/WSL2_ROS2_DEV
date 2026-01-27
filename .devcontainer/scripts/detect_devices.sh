@@ -50,6 +50,20 @@ configure_devices() {
         return
     fi
     
+    # Check write permissions
+    if [ ! -w "$DEVCONTAINER_JSON" ] || [ ! -w "$(dirname "$DEVCONTAINER_JSON")" ]; then
+        echo ""
+        log_error "═══════════════════════════════════════════════════════════════"
+        log_error "PERMISSION DENIED: Cannot modify devcontainer.json"
+        log_error "The script needs write access to configure hardware settings."
+        echo ""
+        log_warn  "Please run this command in your WSL terminal to fix ownership:"
+        echo -e   "${GREEN}    sudo chown -R \$USER:\$USER ~/env${NC}"
+        echo ""
+        log_error "═══════════════════════════════════════════════════════════════"
+        exit 1
+    fi
+
     # Create backup
     cp "$DEVCONTAINER_JSON" "$DEVCONTAINER_JSON.bak"
     

@@ -5,10 +5,10 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # 1. Install Base Tools and Dependencies
-# Add oibaf PPA for latest Mesa drivers (daily builds with D3D12/Intel improvements)
+# Add kisak PPA for latest Mesa drivers (daily builds with D3D12/Intel improvements)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
-    && add-apt-repository -y ppa:oibaf/graphics-drivers \
+    && add-apt-repository -y ppa:kisak/kisak-mesa \
     && add-apt-repository universe \
     && apt-get update && apt-get full-upgrade -y \
     && apt-get install -y --no-install-recommends \

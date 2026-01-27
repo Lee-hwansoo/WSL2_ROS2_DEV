@@ -105,6 +105,39 @@ install_dev_tools() {
 }
 
 # =============================================================================
+# FONT INSTALLATION
+# =============================================================================
+install_d2coding_font() {
+    local font_dir="/usr/share/fonts/truetype/d2coding"
+    
+    if [ -d "$font_dir" ] && [ -f "$font_dir/D2Coding-Ver1.3.2-20180524.ttf" ]; then
+        log_success "D2Coding font is already installed."
+        return 0
+    fi
+
+    log_info "Installing D2Coding font..."
+    
+    mkdir -p "$font_dir"
+    
+    # Download D2Coding font (ver 1.3.2)
+    local download_url="https://github.com/naver/d2codingfont/releases/download/VER1.3.2/D2Coding-Ver1.3.2-20180524.zip"
+    local temp_zip="/tmp/d2coding.zip"
+    
+    if curl -L -o "$temp_zip" "$download_url"; then
+        unzip -q -o "$temp_zip" -d "$font_dir"
+        rm "$temp_zip"
+        
+        # Update font cache
+        fc-cache -f -v > /dev/null
+        
+        log_success "D2Coding font installed successfully."
+    else
+        log_warn "Failed to download D2Coding font."
+        return 1
+    fi
+}
+
+# =============================================================================
 # UV INSTALLATION (Python Tool)
 # =============================================================================
 install_uv() {

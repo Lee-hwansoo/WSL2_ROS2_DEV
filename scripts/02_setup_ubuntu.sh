@@ -94,6 +94,7 @@ install_mesa_latest
 # ─────────────────────────────────────────────────────────────────────────────
 log_info "[5/6] Installing development tools..."
 install_dev_tools
+install_d2coding_font
 install_uv "$TARGET_USER"
 
 # ─────────────────────────────────────────────────────────────────────────────

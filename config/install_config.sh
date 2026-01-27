@@ -30,14 +30,15 @@ BASE_PACKAGES=(
     "gnupg"
     "tree"
     "software-properties-common"
+    "htop"
+    "nvtop"
+    "ccache"
 )
 
 # ROS2 packages
 ROS2_PACKAGES=(
     "ros-${ROS_DISTRO}-desktop-full"
     "ros-${ROS_DISTRO}-rmw-cyclonedds-cpp"
-    "ros-${ROS_DISTRO}-xacro"
-    "ros-${ROS_DISTRO}-joint-state-publisher-gui"
     "python3-colcon-common-extensions"
     "python3-rosdep"
     "python3-vcstool"
@@ -46,21 +47,36 @@ ROS2_PACKAGES=(
 # Development tools
 DEV_PACKAGES=(
     "terminator"
-    "htop"
-    "nvtop"
-    "ccache"
     "python3-pip"
+    "python3-venv"
+    "python3-dev"
+    "clang-format"
+    "cmake"
+    "gdb"
+    "gcc"
+    "g++"
+    "clangd"
 )
 
 # GPU/Graphics packages
 GPU_PACKAGES=(
     "mesa-utils"
-    "vulkan-tools"
+    "libwayland-client0"
     "libgl1-mesa-dri"
     "libgl1-mesa-glx"
+    "libglfw3-dev"
+    "libglu1-mesa-dev"
+    "libegl1-mesa-dev"
     "libglx-mesa0"
+    "libxkbcommon0"
     "mesa-vulkan-drivers"
+    "vulkan-tools"
+    "libvulkan-dev"
+    "vulkan-validationlayers"
     "intel-gpu-tools"
+    "intel-media-va-driver-non-free"
+    "libmfx1"
+    "intel-opencl-icd"
     "clinfo"
 )
 

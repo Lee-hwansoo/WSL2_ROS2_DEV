@@ -8,6 +8,8 @@ Windows 11/10에서 **WSL2 네이티브로 ROS2 Humble 개발 환경**을 자동
 |------|------|
 | **원클릭 설치** | PowerShell 스크립트 하나로 WSL 활성화부터 ROS2 설치까지 자동화 |
 | **스마트 드라이브 감지** | D:\, E:\ 드라이브가 있으면 자동 선택 (C:\ 공간 절약) |
+| **강력한 성능** | `ccache`(빌드 가속), `uv`(고속 Python 패키징), `Cyclone DDS` 기본 적용 |
+| **스마트 드라이브** | D:\, E:\ 드라이브 자동 감지 및 설치 |
 | **GPU 가속** | WSLg D3D12 / Intel / NVIDIA 자동 감지 및 설정 |
 | **USB 장치 연동** | usbipd-win 자동 설치로 CAN, 센서 연결 지원 |
 | **SSO 원칙** | 모든 설정을 `config/` 디렉토리에서 중앙 관리 |
@@ -43,21 +45,19 @@ Windows 11/10에서 **WSL2 네이티브로 ROS2 Humble 개발 환경**을 자동
 
 ### 2단계: Ubuntu 설정
 
-Windows 스크립트가 자동으로 호출하지만, 수동 실행도 가능:
-
 ```bash
-# WSL 터미널에서
+# WSL 터미널에서 (Windows 스크립트가 자동 실행하지 않았을 경우)
 cd ~/env
 sudo bash scripts/02_setup_ubuntu.sh
 ```
 
-**수행 작업 (6단계):**
+**수행 작업:**
 1. HWE 커널 설치 (Native Linux 전용)
 2. 기본 패키지 설치
-3. **ROS2 Humble** 설치
-4. **Mesa PPA** 업그레이드 (GPU 가속)
-5. 개발 도구 설치 (terminator, htop, nvtop)
-6. 사용자 및 환경 설정 (bashrc, aliases, terminator)
+2. **ROS2 Humble** + Cyclone DDS + 유용한 도구(xacro, joint-state-publisher-gui)
+3. **uv** (Fast Python Installer) 설치
+4. **Mesa PPA** 최신 드라이버 업데이트
+5. 사용자 및 환경 설정(bashrc, aliases, Terminator, ccache 설정)
 
 ### 3단계: 설치 확인
 
@@ -68,13 +68,14 @@ source ~/.bashrc
 # ROS2 확인
 ros2 --version
 
+# ROS2 & DDS 확인
+echo $RMW_IMPLEMENTATION  # rmw_cyclonedds_cpp
+
 # GPU 상태 확인
 hw_check
 ```
 
 ## 🔌 USB/CAN 장치 연결
-
-WSL에서 USB 장치를 사용하려면:
 
 ```powershell
 # Windows PowerShell (관리자)
@@ -101,13 +102,15 @@ ip link show can0  # CAN 장치
 
 ## ⚡ 빠른 시작 명령어
 
-### 빌드 & 소스
+### ROS2 & 빌드
 | 명령어 | 설명 |
 |--------|------|
 | `cb` | `colcon build --symlink-install` |
 | `cbp <pkg>` | 특정 패키지만 빌드 |
 | `s` | `source install/setup.bash` |
 | `sb` | `source ~/.bashrc` |
+| `rt` / `rn` | 토픽 / 노드 리스트 |
+| `ccache-stat` | 컴파일러 캐시 통계 확인 |
 
 ### 네비게이션
 | 명령어 | 설명 |
@@ -131,26 +134,25 @@ ip link show can0  # CAN 장치
 | `explorer` | Windows 탐색기 열기 |
 | `c` | VS Code 열기 |
 | `t` | Terminator 터미널 열기 |
+| `c` | VS Code 열기 |
+| `explorer` | 윈도우 탐색기 열기 |
 
 ## 📂 디렉토리 구조
 
 ```
 .
 ├── config/                      # [SSO] 설정 중앙 관리
-│   ├── .wslconfig               # WSL 전역 설정 (메모리, 네트워크)
-│   ├── wsl.conf                 # 배포판 설정 (systemd, 기본 사용자)
-│   ├── aliases.sh               # Bash aliases (77개)
-│   ├── terminator_config        # GUI 터미널 설정
-│   ├── install_config.ps1       # Windows 설정 (배포판, 의존성)
-│   └── install_config.sh        # Linux 설정 (패키지 목록)
+│   ├── .wslconfig               # WSL 전역 설정
+│   ├── install_config.ps1       # Windows 의존성 (MSI URL 등)
+│   ├── install_config.sh        # Linux 패키지 목록 (ROS2, DevTools)
+│   ├── aliases.sh               # Bash aliases
+│   └── terminator_config        # GUI 터미널 설정
 ├── scripts/
-│   ├── lib/
-│   │   ├── common.sh            # 로깅, 공용 함수
-│   │   └── installers.sh        # 설치 함수 (ROS2, Mesa, 환경설정)
-│   ├── 01_setup_windows.ps1     # Windows 진입점 (336줄)
-│   ├── 02_setup_ubuntu.sh       # Ubuntu 진입점 (140줄)
+│   ├── 01_setup_windows.ps1     # Windows 설치 스크립트
+│   ├── 02_setup_ubuntu.sh       # Ubuntu 설치 스크립트
 │   ├── hardware_check.sh        # 하드웨어 진단
 │   └── gpu_setup.sh             # GPU 설정
+│   └── lib/                     # 모듈화된 함수들 (installers.sh 등)
 └── README.md
 ```
 
@@ -175,13 +177,10 @@ DEV_PACKAGES=(
 ```
 
 ### Cyclone DDS (통신 미들웨어)
-
-기본적으로 `Cyclone DDS`가 활성화되어 있습니다. 변경하려면 `.bashrc`를 수정하세요:
-
+기본값은 `Cyclone DDS`입니다. 변경하려면 `~/.bashrc` 수정:
 ```bash
-# ~/.bashrc
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp  # (기본값)
-# export RMW_IMPLEMENTATION=rmw_fastrtps_cpp  # 원복 시
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp  # 기본값
+# export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ```
 
 ### WSL 메모리/CPU 설정
@@ -198,11 +197,13 @@ processors=4
 
 `config/install_config.ps1` 수정:
 
+### Windows 의존성 추가
+`config/install_config.ps1`에서 MSI 패키지 추가 가능:
+
 ```powershell
-$SetupConfig = @{
-    DefaultUser = "your_username"
-    # ...
-}
+WindowsDependencies = @(
+    @{ Name="App"; Url="https://..."; FileName="app.msi"; CheckCommand="app" }
+)
 ```
 
 ## 🛑 트러블슈팅

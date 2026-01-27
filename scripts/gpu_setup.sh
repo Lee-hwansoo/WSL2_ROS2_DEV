@@ -65,16 +65,15 @@ function detect_gpu() {
 }
 
 function setup_d3d12() {
-    # Auto-detect mode: Unset overrides to let Mesa choose the best driver
-    # Rigidly setting 'd3d12' can fail if the library isn't perfectly matched
-    unset MESA_LOADER_DRIVER_OVERRIDE
-    unset GALLIUM_DRIVER
-
+    # Explicitly force D3D12 driver for WSL2 GPU passthrough
+    # Auto-detection often fails and falls back to llvmpipe
+    export MESA_LOADER_DRIVER_OVERRIDE="d3d12"
+    export GALLIUM_DRIVER="d3d12"
     export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
     unset LIBGL_ALWAYS_SOFTWARE
     unset __NV_PRIME_RENDER_OFFLOAD
     unset __GLX_VENDOR_LIBRARY_NAME
-    log_ok "Configured for WSL2 D3D12 GPU passthrough (Auto-Detect)"
+    log_ok "Configured for WSL2 D3D12 GPU passthrough"
 }
 
 function setup_intel() {

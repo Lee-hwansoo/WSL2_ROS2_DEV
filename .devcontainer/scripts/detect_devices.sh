@@ -1,6 +1,6 @@
 #!/bin/bash
 # .devcontainer/scripts/detect_devices.sh
-# Pre-container device detection for cross-platform compatibility
+# Pre-container device detection and dynamic configuration
 # Runs via initializeCommand before container starts
 
 set -e
@@ -17,6 +17,10 @@ log_info()  { echo -e "${BLUE}${LOG_PREFIX}${NC} $1"; }
 log_ok()    { echo -e "${GREEN}${LOG_PREFIX}${NC} ✓ $1"; }
 log_warn()  { echo -e "${YELLOW}${LOG_PREFIX}${NC} ⚠ $1"; }
 
+# --- Get Script Directory ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEVCONTAINER_JSON="$SCRIPT_DIR/../devcontainer.json"
+
 echo ""
 log_info "╔══════════════════════════════════════════════════════════════╗"
 log_info "║          Pre-Container Hardware Detection                      ║"
@@ -24,14 +28,52 @@ log_info "╚══════════════════════�
 echo ""
 
 # --- Environment Detection ---
-log_info "Checking environment..."
-if grep -qi "microsoft" /proc/version 2>/dev/null; then
+is_wsl2() {
+    grep -qi "microsoft" /proc/version 2>/dev/null
+}
+
+log_info "Detecting environment..."
+if is_wsl2; then
     log_ok "WSL2 environment detected"
-    IS_WSL2=true
+    ENVIRONMENT="wsl2"
 else
-    log_info "Native Linux environment"
-    IS_WSL2=false
+    log_ok "Native Linux environment detected"
+    ENVIRONMENT="native"
 fi
+
+# --- Dynamic Device Configuration ---
+configure_devices() {
+    log_info "Configuring device mappings for $ENVIRONMENT..."
+    
+    if [ ! -f "$DEVCONTAINER_JSON" ]; then
+        log_warn "devcontainer.json not found, skipping device configuration"
+        return
+    fi
+    
+    # Create backup
+    cp "$DEVCONTAINER_JSON" "$DEVCONTAINER_JSON.bak"
+    
+    if [ "$ENVIRONMENT" = "wsl2" ]; then
+        # Enable WSL2 device, disable Native device
+        # Uncomment /dev/dxg line (remove // prefix if commented)
+        sed -i 's|// *"--device=/dev/dxg"|"--device=/dev/dxg"|g' "$DEVCONTAINER_JSON"
+        # Comment out /dev/dri line
+        sed -i 's|^\([[:space:]]*\)"--device=/dev/dri"|\1// "--device=/dev/dri"|g' "$DEVCONTAINER_JSON"
+        log_ok "Enabled: /dev/dxg (WSL2 D3D12)"
+        log_info "Disabled: /dev/dri (Native Linux only)"
+    else
+        # Enable Native device, disable WSL2 device
+        # Uncomment /dev/dri line
+        sed -i 's|// *"--device=/dev/dri"|"--device=/dev/dri"|g' "$DEVCONTAINER_JSON"
+        # Comment out /dev/dxg line
+        sed -i 's|^\([[:space:]]*\)"--device=/dev/dxg"|\1// "--device=/dev/dxg"|g' "$DEVCONTAINER_JSON"
+        log_ok "Enabled: /dev/dri (Native Linux DRI)"
+        log_info "Disabled: /dev/dxg (WSL2 only)"
+    fi
+}
+
+# Run device configuration
+configure_devices
 
 # --- GPU Device Detection ---
 log_info "Scanning GPU devices..."
@@ -40,7 +82,9 @@ log_info "Scanning GPU devices..."
 if [ -e "/dev/dxg" ]; then
     log_ok "/dev/dxg (Windows GPU Passthrough - D3D12)"
 else
-    log_warn "/dev/dxg not found (non-WSL2 or driver issue)"
+    if [ "$ENVIRONMENT" = "wsl2" ]; then
+        log_warn "/dev/dxg not found (driver issue?)"
+    fi
 fi
 
 # DRI Devices (Intel/AMD/Mesa)
@@ -55,7 +99,9 @@ if [ -d "/dev/dri" ]; then
         log_warn "/dev/dri exists but no devices found"
     fi
 else
-    log_warn "/dev/dri directory not found"
+    if [ "$ENVIRONMENT" = "native" ]; then
+        log_warn "/dev/dri not found"
+    fi
 fi
 
 # NVIDIA GPU
@@ -102,11 +148,11 @@ if [ -d "/tmp/.X11-unix" ]; then
     log_ok "X11 socket directory available"
 fi
 
-# --- WSL Driver Store ---
+# WSL Driver Store
 if [ -d "/usr/lib/wsl/lib" ]; then
     log_ok "WSL Driver Store: /usr/lib/wsl/lib"
 else
-    if [ "$IS_WSL2" = true ]; then
+    if [ "$ENVIRONMENT" = "wsl2" ]; then
         log_warn "WSL Driver Store not found (GPU passthrough may fail)"
     fi
 fi
@@ -114,7 +160,7 @@ fi
 # --- Summary ---
 echo ""
 log_info "═══════════════════════════════════════════════════════════════"
-log_info "Device detection complete. Container will start with available hardware."
+log_info "Device detection complete. Environment: $ENVIRONMENT"
 log_info "═══════════════════════════════════════════════════════════════"
 echo ""
 

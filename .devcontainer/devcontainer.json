@@ -16,9 +16,11 @@
         // 2. security, permission
         "--security-opt=seccomp:unconfined",
         "--security-opt=apparmor:unconfined",
-        // 3. Device Mapping (GPU/NPU via D3D12 passthrough)
+        // 3. Device Mapping (Auto-configured by detect_devices.sh)
+        // [DEVICE_WSL2] WSL2 uses /dev/dxg for D3D12 GPU passthrough
         "--device=/dev/dxg",
-        "--device=/dev/dri",
+        // [DEVICE_NATIVE] Native Linux uses /dev/dri for DRI devices
+        // "--device=/dev/dri",
         // 4. Environment Variables
         "-e",
         "DISPLAY=${env:DISPLAY}",

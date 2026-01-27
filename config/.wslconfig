@@ -1,7 +1,7 @@
 [wsl2]
-processors=4
-memory=8GB
-swap=4GB
+processors=16
+memory=16GB
+swap=8GB
 guiApplications=true
 networkingMode=mirrored
 dnsTunneling=true

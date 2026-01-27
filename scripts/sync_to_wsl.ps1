@@ -1,40 +1,112 @@
-# scripts/sync_to_wsl.ps1
-# Helper to manually sync changes from Windows to WSL
-# Useful if you edited config files in Windows and need them applied to the running environment.
+<#
+.SYNOPSIS
+    Synchronizes local Windows project files to WSL2 environment.
+    Solves the "Split-Brain" problem where Windows edits are not reflected in WSL/Container.
 
-Param(
-    [string]$DistroName = "ROS2-Humble",
-    [string]$TargetUser = "ros"
+.DESCRIPTION
+    This script uses 'robocopy' to efficiently mirror the current directory to
+    WSL2 home directory (~/env). Ideally used when you edit config files in Windows
+    and need to apply them to the running WSL setup.
+
+    Excludes: .git, .vscode, ros_ws (User Data), build artifacts
+
+.EXAMPLE
+    .\scripts\sync_to_wsl.ps1
+#>
+
+param (
+    [string]$DistroName = "Ubuntu-22.04",
+    [string]$TargetDir = "env",
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = $PSScriptRoot
-$ProjectRoot = Split-Path $ScriptDir -Parent
 
-Write-Host "[Sync] Syncing Windows -> WSL ($DistroName)..." -ForegroundColor Cyan
+# --- Colors ---
+$Green = [ConsoleColor]::Green
+$Yellow = [ConsoleColor]::Yellow
+$Red = [ConsoleColor]::Red
+$Cyan = [ConsoleColor]::Cyan
+$Reset = [ConsoleColor]::White
 
-# 1. Sync Config/Scripts
-# We use rsync-like behavior with cp -u (update only if newer) to be safe, or just force copy.
-# Since Windows is "Installer", we assume it is the source of truth for CONFIGURATION.
+function Log-Info($Message) { Write-Host "[Sync] $Message" -ForegroundColor $Cyan }
+function Log-Success($Message) { Write-Host "[Sync] ✓ $Message" -ForegroundColor $Green }
+function Log-Warn($Message) { Write-Host "[Sync] ⚠ $Message" -ForegroundColor $Yellow }
+function Log-Error($Message) { Write-Host "[Sync] ✗ $Message" -ForegroundColor $Red }
 
-$wslPath = "\\wsl.localhost\$DistroName\home\$TargetUser\env"
-
-if (-not (Test-Path $wslPath)) {
-    Write-Error "WSL Path not found: $wslPath"
+# --- Check WSL ---
+Log-Info "Checking WSL distribution: $DistroName"
+if (!(wsl --list --quiet | Select-String $DistroName)) {
+    Log-Error "Distribution '$DistroName' not found!"
+    Write-Host "Available distributions:"
+    wsl --list
     exit 1
 }
 
-# Copy specific directories that contain logic
-$dirsToSync = @("config", "scripts", ".devcontainer")
+# --- Paths ---
+$SourcePath = Get-Location
+$WslPath = "\\wsl.localhost\$DistroName\home\ros\$TargetDir"
 
-foreach ($dir in $dirsToSync) {
-    $src = Join-Path $ProjectRoot $dir
-    $dest = Join-Path $wslPath $dir
-    
-    if (Test-Path $src) {
-        Write-Host "  -> Syncing $dir..."
-        Copy-Item -Path $src -Destination $wslPath -Recurse -Force
+Log-Info "Source: $SourcePath"
+Log-Info "Target: $WslPath"
+
+if (!(Test-Path $WslPath)) {
+    Log-Warn "Target directory does not exist. Creating..."
+    # Try to create via WSL command to ensure permissions
+    wsl -d $DistroName mkdir -p "~/env"
+    if (!(Test-Path $WslPath)) {
+        Log-Error "Failed to access target path via UNC. Is WSL running?"
+        exit 1
     }
 }
 
-Write-Host "[Sync] Done! You may need to rebuild the container or restart the terminal." -ForegroundColor Green
+# --- Robocopy Sync ---
+Log-Info "Starting synchronization..."
+
+# Exclude list
+$Excludes = @(
+    ".git",
+    ".vscode",
+    "ros_ws",      # User workspace (Don't overwrite code!)
+    "build",
+    "install",
+    "log",
+    "*.swp"
+)
+
+# Robocopy options:
+# /MIR : Mirror a directory tree (equivalent to /E plus /PURGE)
+# /XD  : Exclude Directories
+# /XF  : Exclude Files
+# /FFT : Assume fat file times (2-second granularity)
+# /R:0 : 0 Retries on failed copies
+# /W:0 : Wait time between retries
+# /NJH : No Job Header
+# /NJS : No Job Summary (Minimal output)
+
+$RobocopyArgs = @(
+    "$SourcePath",
+    "$WslPath",
+    "/MIR",
+    "/FFT",
+    "/R:0",
+    "/W:0",
+    "/XD"
+) + $Excludes
+
+try {
+    # Run Robocopy
+    # Valid exit codes: 0-7 (Refer to Robocopy doc)
+    $Process = Start-Process -FilePath "robocopy" -ArgumentList $RobocopyArgs -NoNewWindow -PassThru -Wait
+    
+    if ($Process.ExitCode -ge 8) {
+        throw "Robocopy failed with exit code $($Process.ExitCode)"
+    }
+    
+    Log-Success "Synchronization complete!"
+    Log-Info "Changes applied to WSL($DistroName): ~/env"
+    
+} catch {
+    Log-Error "Sync failed: $_"
+    exit 1
+}

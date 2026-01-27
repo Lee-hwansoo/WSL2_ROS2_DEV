@@ -249,6 +249,7 @@ classDiagram
   # Windows PowerShell
   .\scripts\sync_to_wsl.ps1
   ```
+  > **주의**: `ros_ws` (사용자 코드)와 `.git` 폴더는 동기화에서 제외되므로 안전합니다.
 
 ## ⚡ 성능 팁
 

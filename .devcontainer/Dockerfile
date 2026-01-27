@@ -5,10 +5,10 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # 1. Install Base Tools and Dependencies
-# Add kisak-mesa PPA for latest Mesa drivers (improves D3D12/Intel iGPU support in WSL2)
+# Add oibaf PPA for latest Mesa drivers (daily builds with D3D12/Intel improvements)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
-    && add-apt-repository -y ppa:kisak/kisak-mesa \
+    && add-apt-repository -y ppa:oibaf/graphics-drivers \
     && add-apt-repository universe \
     && apt-get update && apt-get full-upgrade -y \
     && apt-get install -y --no-install-recommends \
@@ -57,10 +57,10 @@ ENV LC_ALL=en_US.UTF-8
 
 # 1.1.5 Install D2Coding Font
 RUN mkdir -p /usr/share/fonts/truetype/d2coding \
-    && curl -L -o /tmp/d2coding.zip https://github.com/naver/d2codingfont/releases/download/VER1.3.2/D2Coding-Ver1.3.2-20180524.zip \
+    && (curl -L -o /tmp/d2coding.zip https://github.com/naver/d2codingfont/releases/download/VER1.3.2/D2Coding-Ver1.3.2-20180524.zip \
     && unzip /tmp/d2coding.zip -d /usr/share/fonts/truetype/d2coding \
     && rm /tmp/d2coding.zip \
-    && fc-cache -f -v
+    && fc-cache -f -v) || echo "Failed to install D2Coding font, skipping..."
 
 # 1.2 Universal Hardware Environment
 # Force libGL/OpenCL to look in /usr/lib/wsl/lib for host drivers

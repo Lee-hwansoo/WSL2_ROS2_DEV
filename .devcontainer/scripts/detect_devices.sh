@@ -16,6 +16,7 @@ LOG_PREFIX="[Device-Detect]"
 log_info()  { echo -e "${BLUE}${LOG_PREFIX}${NC} $1"; }
 log_ok()    { echo -e "${GREEN}${LOG_PREFIX}${NC} ✓ $1"; }
 log_warn()  { echo -e "${YELLOW}${LOG_PREFIX}${NC} ⚠ $1"; }
+log_error() { echo -e "${RED}${LOG_PREFIX}${NC} ✗ $1"; }
 
 # --- Get Script Directory ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

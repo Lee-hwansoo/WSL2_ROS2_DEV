@@ -206,6 +206,23 @@ WindowsDependencies = @(
 )
 ```
 
+## 🚀 성능 최적화 (Persistent Caching)
+
+이 프로젝트는 **Windows-WSL 간 공유 캐시** 전략을 사용하여, WSL 인스턴스를 삭제하고 재설치하더라도 다운로드 속도를 비약적으로 향상시킵니다.
+
+### 1. 작동 원리
+Windows의 `Setup` 단계에서 `D:\WSL\Cache` (또는 설치 드라이브) 폴더를 생성하고, 리눅스 설정 단계에서 이 폴더를 시스템에 연결합니다.
+
+| 종류 | 대상 | 전략 (Mechanism) | 효과 |
+|------|------|------------------|------|
+| **APT** | `.deb` 설치 파일 | **Bind Mount** (`mount --bind`) | 패키지 다운로드 없이 즉시 설치 (`/var/cache/apt/archives`) |
+| **Python** | `pip`, `uv` 라이브러리 | **Env Vars** (`.bashrc`) | `pip install` 시 다운로드 건너뜀 (`UV_CACHE_DIR`, `PIP_CACHE_DIR`) |
+
+### 2. 기술적 세부사항
+- **Apt Cache**: `/var/cache/apt/archives`를 `WSL\Cache\apt`에 바인딩합니다. `/var/lib/apt/lists`는 권한 문제(fchmod) 방지를 위해 캐시하지 않습니다.
+- **Safety**: 스크립트 재실행 시, 이미 마운트된 경우를 감지하여 캐시가 실수로 삭제(`rm -rf`)되는 것을 방지합니다 (Idempotency 보장).
+- **Environment**: `.bashrc`에 환경 변수를 영구 등록하므로, 사용자가 추후 터미널에서 패키지를 설치할 때도 캐시가 적용됩니다.
+
 ## 🛑 트러블슈팅
 
 | 문제 | 해결 방법 |

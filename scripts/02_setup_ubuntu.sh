@@ -43,55 +43,8 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Cache Configuration (Persistent)
 # ─────────────────────────────────────────────────────────────────────────────
-if [ -n "$HOST_CACHE_DIR" ] && [ -d "$HOST_CACHE_DIR" ]; then
-    log_info "[0/6] Configuring persistent cache at $HOST_CACHE_DIR..."
-    
-    # 1. APT Cache
-    APT_CACHE="$HOST_CACHE_DIR/apt"
-    APT_LISTS="$HOST_CACHE_DIR/apt/lists"
-    mkdir -p "$APT_CACHE" "$APT_LISTS"
-    
-    # Clean existing if it's not a symlink/mount
-    if [ ! -L /var/cache/apt/archives ]; then
-        rm -rf /var/cache/apt/archives
-    fi
-    if [ ! -L /var/lib/apt/lists ]; then
-        rm -rf /var/lib/apt/lists
-    fi
-    mkdir -p /var/cache/apt/archives /var/lib/apt/lists
-    
-    # Bind mount
-    mount --bind "$APT_CACHE" /var/cache/apt/archives
-    mount --bind "$APT_LISTS" /var/lib/apt/lists
-    log_success "APT cache bound to persistent storage."
-    
-    # 2. UV/Pip Cache (Prepare Environment Variables)
-    UV_CACHE_DIR="$HOST_CACHE_DIR/uv"
-    PIP_CACHE_DIR="$HOST_CACHE_DIR/pip"
-    mkdir -p "$UV_CACHE_DIR" "$PIP_CACHE_DIR"
-    
-    # Export for current script execution
-    export UV_CACHE_DIR
-    export PIP_CACHE_DIR
-    
-    # Persist for USER in .bashrc
-    USER_HOME=$(eval echo "~$TARGET_USER")
-    BASHRC="$USER_HOME/.bashrc"
-    
-    if grep -q "UV_CACHE_DIR" "$BASHRC"; then
-        # Update existing
-        sed -i "s|export UV_CACHE_DIR=.*|export UV_CACHE_DIR=\"$UV_CACHE_DIR\"|" "$BASHRC"
-        sed -i "s|export PIP_CACHE_DIR=.*|export PIP_CACHE_DIR=\"$PIP_CACHE_DIR\"|" "$BASHRC"
-    else
-        # Append new
-        echo "" >> "$BASHRC"
-        echo "# [Persistent Cache]" >> "$BASHRC"
-        echo "export UV_CACHE_DIR=\"$UV_CACHE_DIR\"" >> "$BASHRC"
-        echo "export PIP_CACHE_DIR=\"$PIP_CACHE_DIR\"" >> "$BASHRC"
-    fi
-    chown "$TARGET_USER:$TARGET_USER" "$BASHRC"
-    
-    log_success "Package caches configured (Apt, UV, Pip)."
+if [ -n "$HOST_CACHE_DIR" ]; then
+    configure_system_cache "$HOST_CACHE_DIR"
 fi
 
 echo ""
@@ -149,7 +102,7 @@ install_mesa_latest
 log_info "[5/6] Installing development tools..."
 install_dev_tools
 install_d2coding_font
-install_uv "$TARGET_USER"
+install_uv
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 6. User & Environment Configuration
@@ -159,6 +112,11 @@ setup_user "$TARGET_USER"
 
 if [ "$IS_WSL" = true ]; then
     setup_wsl_conf "$TARGET_USER"
+fi
+
+# Configure persistent cache for USER in .bashrc (if applicable)
+if [ -n "$HOST_CACHE_DIR" ]; then
+    configure_user_cache "$TARGET_USER" "$HOST_CACHE_DIR"
 fi
 
 configure_ros_environment "$TARGET_USER"
@@ -189,7 +147,7 @@ log_success "╚═════════════════════�
 echo ""
 log_info "Next steps:"
 log_info "  1. Open a new terminal or run: source ~/.bashrc"
-log_info "  2. Verify ROS2: ros2 --version"
+log_info "  2. Verify ROS2: echo $ROS_DISTRO"
 log_info "  3. Check GPU: hw_check"
 log_info "  4. Start coding in ~/ros_ws"
 echo ""

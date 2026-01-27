@@ -272,6 +272,8 @@ function Install-WslDistro {
 function Bootstrap-Linux {
     Log-Info "Bootstrapping Linux Environment inside WSL..."
     
+    $targetPath = Get-OptimalInstallPath
+
     # Calculate path to Linux script visible from WSL
     # e.g. C:\Users\... -> /mnt/c/Users/...
     $driveLetter = $ScriptDir.Substring(0,1).ToLower()

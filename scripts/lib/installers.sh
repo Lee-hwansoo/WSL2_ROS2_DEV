@@ -146,15 +146,13 @@ install_uv() {
         return 0
     fi
 
-    log_info "Installing uv (Fast Python Installer)..."
-
-    # We will run this as the target user to ensure it goes to their home
-    local target_user="${1:-ros}"
+    # Install system-wide to /usr/local/bin
+    log_info "Installing uv (Fast Python Installer) to /usr/local/bin..."
     
-    # Run installation as target user
-    su - "$target_user" -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    export UV_INSTALL_DIR="/usr/local/bin"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
     
-    log_success "uv installed."
+    log_success "uv installed system-wide."
 }
 
 # =============================================================================
@@ -279,4 +277,77 @@ EOF
     chown "$username:$username" "$bashrc"
     
     log_success "ROS2 environment configured."
+}
+# ─────────────────────────────────────────────────────────────────────────────
+# Cache Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+configure_system_cache() {
+    local host_cache_dir=$1
+    
+    if [ -z "$host_cache_dir" ] || [ ! -d "$host_cache_dir" ]; then
+        return
+    fi
+    
+    log_info "Configuring persistent cache at $host_cache_dir..."
+    
+    # 1. APT Cache
+    local apt_cache="$host_cache_dir/apt"
+    mkdir -p "$apt_cache"
+    
+    # Check if already mounted (idempotency)
+    if grep -q "/var/cache/apt/archives" /proc/mounts; then
+        log_success "APT cache is already mounted."
+    else
+        # Clean existing only if NOT mounted
+        if [ ! -L /var/cache/apt/archives ]; then
+            rm -rf /var/cache/apt/archives
+        fi
+        mkdir -p /var/cache/apt/archives
+        
+        # Bind mount
+        mount --bind "$apt_cache" /var/cache/apt/archives
+        log_success "APT cache bound to persistent storage."
+    fi
+    
+    # 2. UV/Pip Cache (Prepare Environment Variables)
+    local uv_cache_dir="$host_cache_dir/uv"
+    local pip_cache_dir="$host_cache_dir/pip"
+    mkdir -p "$uv_cache_dir" "$pip_cache_dir"
+    
+    # Export for current script execution
+    export UV_CACHE_DIR="$uv_cache_dir"
+    export PIP_CACHE_DIR="$pip_cache_dir"
+    
+    log_success "Package caches configured (Apt, UV, Pip)."
+}
+
+configure_user_cache() {
+    local target_user=$1
+    local host_cache_dir=$2
+    
+    if [ -z "$host_cache_dir" ]; then
+        return
+    fi
+    
+    local user_home=$(eval echo "~$target_user")
+    local bashrc="$user_home/.bashrc"
+    local uv_cache_dir="$host_cache_dir/uv"
+    local pip_cache_dir="$host_cache_dir/pip"
+    
+    log_info "Persisting cache configuration for $target_user..."
+    
+    if grep -q "UV_CACHE_DIR" "$bashrc"; then
+        # Update existing
+        sed -i "s|export UV_CACHE_DIR=.*|export UV_CACHE_DIR=\"$uv_cache_dir\"|" "$bashrc"
+        sed -i "s|export PIP_CACHE_DIR=.*|export PIP_CACHE_DIR=\"$pip_cache_dir\"|" "$bashrc"
+    else
+        # Append new
+        echo "" >> "$bashrc"
+        echo "# [Persistent Cache]" >> "$bashrc"
+        echo "export UV_CACHE_DIR=\"$uv_cache_dir\"" >> "$bashrc"
+        echo "export PIP_CACHE_DIR=\"$pip_cache_dir\"" >> "$bashrc"
+    fi
+    chown "$target_user:$target_user" "$bashrc"
+    log_success "User cache persisted in .bashrc"
 }

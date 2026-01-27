@@ -234,7 +234,8 @@ function Install-WslDistro {
     Log-Info "Installation Target: $targetPath"
 
     # Check if already installed
-    $list = wsl --list --quiet
+    # Use -v to get cleaner output, convert to string to handle objects
+    $list = (wsl --list --quiet) | Out-String
     if ($list -match $DistroName) {
         Log-Success "WSL Distro '$DistroName' is already registered."
         return
@@ -256,7 +257,16 @@ function Install-WslDistro {
     }
 
     Log-Info "Importing WSL Distro..."
-    Exec-Command "wsl" @("--import", $DistroName, $targetPath, $tarPath, "--version", "2")
+    try {
+        Exec-Command "wsl" @("--import", $DistroName, $targetPath, $tarPath, "--version", "2")
+    } catch {
+        $msg = $_.Exception.Message
+        if ($msg -match "already exists" -or $msg -match "Error code -1") {
+            Log-Warn "Distro appears to be already registered (Error caught during import). Continuing..."
+        } else {
+            throw $_
+        }
+    }
 }
 
 function Bootstrap-Linux {

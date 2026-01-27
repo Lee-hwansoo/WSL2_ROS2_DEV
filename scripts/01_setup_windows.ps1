@@ -278,10 +278,15 @@ function Bootstrap-Linux {
     $relativePath = $ScriptDir.Substring(3).Replace("\", "/")
     $linuxScript = "/mnt/$driveLetter/$relativePath/02_setup_ubuntu.sh"
 
-    # We must ensure line endings of linux script are LF if we run it directly? 
-    # Usually WSL handles it, but safer to run via bash
-    
-    Exec-Command "wsl" @("-d", $DistroName, "-u", "root", "--", "bash", $linuxScript, $TargetUser)
+    # Calculate Host Cache Path visible from WSL
+    $cacheDirWin = Join-Path (Split-Path $targetPath -Parent) "Cache"
+    $driveLetterCache = $cacheDirWin.Substring(0,1).ToLower()
+    $relativePathCache = $cacheDirWin.Substring(3).Replace("\", "/")
+    $wslCachePath = "/mnt/$driveLetterCache/$relativePathCache"
+
+    Log-Info "Passing Host Cache Path to Linux: $wslCachePath"
+
+    Exec-Command "wsl" @("-d", $DistroName, "-u", "root", "--", "bash", $linuxScript, $TargetUser, $wslCachePath)
 }
 
 function Copy-Project-To-WSL {

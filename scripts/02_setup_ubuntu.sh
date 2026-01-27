@@ -24,7 +24,7 @@ source "$SCRIPT_DIR/lib/installers.sh"
 # ARGUMENTS
 # =============================================================================
 TARGET_USER=${1:-ros}
-SKIP_DOCKER=${2:-false}
+HOST_CACHE_DIR=$2
 
 # =============================================================================
 # MAIN
@@ -38,6 +38,60 @@ if grep -q "WSL" /proc/version; then
 else
     IS_WSL=false
     log_info "Detected Native Linux environment."
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 0. Cache Configuration (Persistent)
+# ─────────────────────────────────────────────────────────────────────────────
+if [ -n "$HOST_CACHE_DIR" ] && [ -d "$HOST_CACHE_DIR" ]; then
+    log_info "[0/6] Configuring persistent cache at $HOST_CACHE_DIR..."
+    
+    # 1. APT Cache
+    APT_CACHE="$HOST_CACHE_DIR/apt"
+    APT_LISTS="$HOST_CACHE_DIR/apt/lists"
+    mkdir -p "$APT_CACHE" "$APT_LISTS"
+    
+    # Clean existing if it's not a symlink/mount
+    if [ ! -L /var/cache/apt/archives ]; then
+        rm -rf /var/cache/apt/archives
+    fi
+    if [ ! -L /var/lib/apt/lists ]; then
+        rm -rf /var/lib/apt/lists
+    fi
+    mkdir -p /var/cache/apt/archives /var/lib/apt/lists
+    
+    # Bind mount
+    mount --bind "$APT_CACHE" /var/cache/apt/archives
+    mount --bind "$APT_LISTS" /var/lib/apt/lists
+    log_success "APT cache bound to persistent storage."
+    
+    # 2. UV/Pip Cache (Prepare Environment Variables)
+    UV_CACHE_DIR="$HOST_CACHE_DIR/uv"
+    PIP_CACHE_DIR="$HOST_CACHE_DIR/pip"
+    mkdir -p "$UV_CACHE_DIR" "$PIP_CACHE_DIR"
+    
+    # Export for current script execution
+    export UV_CACHE_DIR
+    export PIP_CACHE_DIR
+    
+    # Persist for USER in .bashrc
+    USER_HOME=$(eval echo "~$TARGET_USER")
+    BASHRC="$USER_HOME/.bashrc"
+    
+    if grep -q "UV_CACHE_DIR" "$BASHRC"; then
+        # Update existing
+        sed -i "s|export UV_CACHE_DIR=.*|export UV_CACHE_DIR=\"$UV_CACHE_DIR\"|" "$BASHRC"
+        sed -i "s|export PIP_CACHE_DIR=.*|export PIP_CACHE_DIR=\"$PIP_CACHE_DIR\"|" "$BASHRC"
+    else
+        # Append new
+        echo "" >> "$BASHRC"
+        echo "# [Persistent Cache]" >> "$BASHRC"
+        echo "export UV_CACHE_DIR=\"$UV_CACHE_DIR\"" >> "$BASHRC"
+        echo "export PIP_CACHE_DIR=\"$PIP_CACHE_DIR\"" >> "$BASHRC"
+    fi
+    chown "$TARGET_USER:$TARGET_USER" "$BASHRC"
+    
+    log_success "Package caches configured (Apt, UV, Pip)."
 fi
 
 echo ""
@@ -123,7 +177,7 @@ su - "$TARGET_USER" -c "rosdep update" || true
 # ─────────────────────────────────────────────────────────────────────────────
 log_info "Cleaning up..."
 apt-get autoremove -y
-apt-get clean
+# apt-get clean  <-- DISABLED to persist cache
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Complete

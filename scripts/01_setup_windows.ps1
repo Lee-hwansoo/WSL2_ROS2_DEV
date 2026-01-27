@@ -26,10 +26,11 @@ Param(
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = $PSScriptRoot
+$ConfigDir = Join-Path (Split-Path $ScriptDir -Parent) "config"
 
 # Load Configuration
 try {
-    . "$ScriptDir\install_config.ps1"
+    . "$ConfigDir\install_config.ps1"
 } catch {
     Write-Host "[FATAL] Failed to load configuration file 'install_config.ps1'." -ForegroundColor Red
     exit 1
@@ -89,6 +90,29 @@ function Enable-WslFeatures {
         Log-Warn "Windows features enabled. A system reboot is required."
         if ($DryRun) { return }
         exit 0 # Exit gracefully to allow reboot
+    }
+}
+
+function Install-WindowsDependencies {
+    Log-Info "Installing Windows dependencies..."
+    
+    foreach ($pkg in $SetupConfig.WindowsDependencies) {
+        # Check if already installed
+        $installed = winget list --id $pkg 2>$null | Select-String $pkg
+        if ($installed) {
+            Log-Success "$pkg is already installed."
+            continue
+        }
+        
+        Log-Info "Installing $pkg via winget..."
+        if (-not $DryRun) {
+            winget install --id $pkg --accept-source-agreements --accept-package-agreements
+            if ($LASTEXITCODE -ne 0) {
+                Log-Warn "Failed to install $pkg. Please install manually."
+            } else {
+                Log-Success "$pkg installed."
+            }
+        }
     }
 }
 
@@ -169,52 +193,9 @@ function Get-SystemHealth {
     }
 }
 
-function Validate-DevContainer-GpuMounts {
-    param([hashtable]$HardwareProfile)
-
-    Log-Info "Validating Dev Container configuration..."
-    if ($HardwareProfile) { Log-Info "Hardware Context: $($HardwareProfile.Description)" }
-
-    $devContainerFile = Join-Path (Split-Path $ScriptDir -Parent) $SetupConfig.DevContainerPath
-
-    if (-not (Test-Path $devContainerFile)) {
-        Log-Warn "devcontainer.json not found at $devContainerFile"
-        return
-    }
-
-    $content = Get-Content -Path $devContainerFile -Raw
-
-    # NOTE: GPU configuration is now handled at runtime by gpu_setup.sh
-    # WSL2 uses D3D12/dxg for GPU passthrough, not --gpus=all (NVIDIA Container Toolkit)
-    # The runtime script auto-detects Intel/NVIDIA/AMD and sets appropriate environment variables
-
-    # Verify Critical WSL2 GPU Mounts
-    $requiredMounts = @(
-        "/usr/lib/wsl/lib",  # WSL2 GPU drivers
-        "/mnt/wslg",          # WSLg Wayland/Audio
-        "/dev/dxg"            # GPU device
-    )
-
-    $missingMounts = @()
-    foreach ($mount in $requiredMounts) {
-        if ($content -notmatch [regex]::Escape($mount)) {
-            $missingMounts += $mount
-        }
-    }
-
-    if ($missingMounts.Count -gt 0) {
-        Log-Warn "MISSING GPU mounts in devcontainer.json: $($missingMounts -join ', ')"
-        Log-Warn "Please update devcontainer.json to include required WSL2 GPU mounts."
-    } else {
-        Log-Success "DevContainer GPU configuration validated."
-    }
-}
-
 function Configure-HardwareEnvironment {
     $hw = Get-HardwareProfile
     Log-Success "Hardware Detected: $($hw.Description)"
-    
-    Validate-DevContainer-GpuMounts -HardwareProfile $hw
 }
 
 function Verify-WslDriverProjection {
@@ -327,6 +308,7 @@ try {
     
     if (-not $DryRun) { wsl --update }
 
+    Install-WindowsDependencies
     Update-GlobalWslConfig
     Configure-HardwareEnvironment
     

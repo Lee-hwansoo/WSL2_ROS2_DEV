@@ -16,6 +16,8 @@ $SetupConfig = @{
         "VirtualMachinePlatform"
     )
 
-    # Dev Container Settings
-    DevContainerPath  = ".devcontainer\devcontainer.json"
+    # Windows Dependencies (installed via winget)
+    WindowsDependencies = @(
+        "usbipd-win"  # USB device sharing to WSL
+    )
 }

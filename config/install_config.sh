@@ -67,8 +67,4 @@ GPU_PACKAGES=(
 # =============================================================================
 ROS2_GPG_URL="https://raw.githubusercontent.com/ros/rosdistro/master/ros.key"
 ROS2_REPO_URL="http://packages.ros.org/ros2/ubuntu"
-MESA_PPA="ppa:oibaf/graphics-drivers"
-
-# Docker (optional)
-DOCKER_GPG_URL="https://download.docker.com/linux/ubuntu/gpg"
-DOCKER_REPO_URL="https://download.docker.com/linux/ubuntu"
+MESA_PPA="ppa:kisak/kisak-mesa"

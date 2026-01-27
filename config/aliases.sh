@@ -22,6 +22,7 @@ alias ce='cd ~/env'
 # Utils
 # =============================================================================
 alias k='killall -9'
+alias t='terminator'
 alias py='python3'
 alias g='git'
 alias ll='ls -alF'

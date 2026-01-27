@@ -16,7 +16,7 @@ CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 # =============================================================================
 # LOAD LIBRARIES (SSO)
 # =============================================================================
-source "$SCRIPT_DIR/install_config.sh"
+source "$CONFIG_DIR/install_config.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 source "$SCRIPT_DIR/lib/installers.sh"
 
@@ -53,7 +53,7 @@ echo ""
 # 1. HWE Kernel (Native Linux only)
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$IS_WSL" = false ]; then
-    log_info "[1/7] Installing HWE Kernel..."
+    log_info "[1/6] Installing HWE Kernel..."
     install_hwe_kernel
     HWE_RESULT=$?
     
@@ -68,48 +68,37 @@ if [ "$IS_WSL" = false ]; then
         exit 0
     fi
 else
-    log_info "[1/7] Skipping HWE kernel (WSL2 uses Windows kernel)"
+    log_info "[1/6] Skipping HWE kernel (WSL2 uses Windows kernel)"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Base Packages
 # ─────────────────────────────────────────────────────────────────────────────
-log_info "[2/7] Installing base packages..."
+log_info "[2/6] Installing base packages..."
 install_base_packages
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. ROS2 Installation
 # ─────────────────────────────────────────────────────────────────────────────
-log_info "[3/7] Installing ROS2 ${ROS_DISTRO}..."
+log_info "[3/6] Installing ROS2 ${ROS_DISTRO}..."
 install_ros2
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Mesa PPA (GPU Acceleration)
 # ─────────────────────────────────────────────────────────────────────────────
-log_info "[4/7] Installing latest Mesa GPU drivers..."
+log_info "[4/6] Installing latest Mesa GPU drivers..."
 install_mesa_latest
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. Development Tools
 # ─────────────────────────────────────────────────────────────────────────────
-log_info "[5/7] Installing development tools..."
+log_info "[5/6] Installing development tools..."
 install_dev_tools
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. Docker (Optional)
+# 6. User & Environment Configuration
 # ─────────────────────────────────────────────────────────────────────────────
-if [ "$SKIP_DOCKER" != "true" ]; then
-    log_info "[6/7] Installing Docker..."
-    install_docker
-    enable_docker_service
-else
-    log_info "[6/7] Skipping Docker installation."
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. User & Environment Configuration
-# ─────────────────────────────────────────────────────────────────────────────
-log_info "[7/7] Configuring user and environment..."
+log_info "[6/6] Configuring user and environment..."
 setup_user "$TARGET_USER"
 
 if [ "$IS_WSL" = true ]; then

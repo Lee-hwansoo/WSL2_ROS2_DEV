@@ -105,52 +105,6 @@ install_dev_tools() {
 }
 
 # =============================================================================
-# DOCKER (Optional)
-# =============================================================================
-install_docker() {
-    if cmd_exists docker; then
-        log_success "Docker is already installed."
-        return 0
-    fi
-    
-    log_info "Installing Docker Engine..."
-    
-    # Clean previous
-    for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
-        apt-get remove -y $pkg 2>/dev/null || true
-    done
-
-    # Add Key
-    install -m 0755 -d /etc/apt/keyrings
-    if [ ! -f /etc/apt/keyrings/docker.asc ]; then
-        curl -fsSL "$DOCKER_GPG_URL" -o /etc/apt/keyrings/docker.asc
-        chmod a+r /etc/apt/keyrings/docker.asc
-    fi
-
-    # Add Repo
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] $DOCKER_REPO_URL \
-      $(lsb_release -cs) stable" | \
-      tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    
-    log_success "Docker installed."
-}
-
-enable_docker_service() {
-    if pidof systemd > /dev/null; then
-        systemctl enable docker
-        systemctl start docker || true
-        log_success "Docker service started."
-    else
-        log_info "Systemd not active. Enabling Docker for next boot."
-        systemctl enable docker 2>/dev/null || true
-    fi
-}
-
-# =============================================================================
 # USER & WORKSPACE SETUP
 # =============================================================================
 setup_user() {
@@ -235,6 +189,29 @@ EOF
             echo "# Custom aliases" >> "$bashrc"
             echo "source ~/env/config/aliases.sh" >> "$bashrc"
         fi
+    fi
+    
+    # Setup terminator config
+    local terminator_src="$CONFIG_DIR/terminator_config"
+    local terminator_dir="/home/$username/.config/terminator"
+    if [ -f "$terminator_src" ]; then
+        mkdir -p "$terminator_dir"
+        # Copy instead of symlink (user preference)
+        cp "$terminator_src" "$terminator_dir/config"
+        chown -R "$username:$username" "/home/$username/.config"
+        log_info "Terminator config copied."
+    fi
+    
+    # Set default shell and terminal
+    if [ "$SHELL" != "/bin/bash" ]; then
+        chsh -s /bin/bash "$username"
+        log_info "Default shell set to bash."
+    fi
+    
+    # Set Terminator as default x-terminal-emulator
+    if command -v terminator &>/dev/null; then
+        update-alternatives --set x-terminal-emulator /usr/bin/terminator 2>/dev/null || true
+        log_info "Terminator set as default terminal emulator."
     fi
     
     # Fix ownership

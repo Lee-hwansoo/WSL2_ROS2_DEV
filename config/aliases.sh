@@ -1,53 +1,75 @@
-# aliases.sh
-# Centralized aliases for ROS2 Development Environment
+#!/bin/bash
+# config/aliases.sh
+# Centralized aliases for ROS2 Development Environment (Native WSL2)
 
-# --- ROS2 Build & Source ---
+# =============================================================================
+# ROS2 Build & Source
+# =============================================================================
 alias cb='colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release'
 alias cbp='colcon build --symlink-install --packages-select'
+alias cbt='colcon test'
 alias s='source install/setup.bash'
 alias sb='source ~/.bashrc'
 
-# --- Navigation ---
+# =============================================================================
+# Navigation
+# =============================================================================
 alias cw='cd ~/ros_ws'
 alias cs='cd ~/ros_ws/src'
+alias ce='cd ~/env'
 
-# --- Utils ---
+# =============================================================================
+# Utils
+# =============================================================================
 alias k='killall -9'
 alias py='python3'
 alias g='git'
-alias d='docker'
+alias ll='ls -alF'
 
-# --- ROS2 Utils ---
+# =============================================================================
+# ROS2 Commands
+# =============================================================================
 alias rt='ros2 topic list'
 alias rn='ros2 node list'
+alias rs='ros2 service list'
+alias rp='ros2 param list'
+alias rr='ros2 run'
+alias rl='ros2 launch'
 alias rqt='rqt'
 
-# --- GPU/NPU/Hardware Management ---
-# Comprehensive hardware diagnostics
+# =============================================================================
+# Hardware Diagnostics
+# =============================================================================
+# Comprehensive hardware check
 alias hw_check='bash ~/env/scripts/hardware_check.sh'
 
-# Quick GPU status check
-alias gpu_check='if ! command -v glxinfo &>/dev/null; then echo "Error: glxinfo not found (install mesa-utils)"; else glxinfo 2>&1 | grep -E "OpenGL (vendor|renderer|version)" || echo "Error: glxinfo failed (Check X11/Display connection)"; fi'
+# Quick GPU status
+alias gpu_check='glxinfo 2>&1 | grep -E "OpenGL (vendor|renderer|version)" || echo "Error: glxinfo failed"'
 
-# Full GPU diagnostics (requires gpu_setup.sh)
+# GPU mode switching
 alias gpu_info='source ~/env/scripts/gpu_setup.sh && gpu_status'
-
-# GPU switching commands
+alias gpu_auto='source ~/env/scripts/gpu_setup.sh auto'
 alias use_intel='source ~/env/scripts/gpu_setup.sh intel'
 alias use_nvidia='source ~/env/scripts/gpu_setup.sh nvidia'
 alias use_cpu='source ~/env/scripts/gpu_setup.sh cpu'
-alias gpu_auto='source ~/env/scripts/gpu_setup.sh auto'
 
-# GPU test (runs glxgears briefly)
+# GPU performance test
 alias gpu_test='timeout 5 glxgears -info 2>&1 | head -10 || echo "GPU test failed"'
-
-# NPU/AI Accelerator check
-alias npu_check='if [ -d "/dev/accel" ]; then echo "NPU devices:"; ls -la /dev/accel/; else echo "No NPU detected (/dev/accel not found)"; fi'
 
 # Vulkan check
 alias vulkan_check='vulkaninfo --summary 2>/dev/null | head -20 || echo "Vulkan not available"'
 
-# --- Gazebo / Simulation ---
+# =============================================================================
+# Gazebo / Simulation
+# =============================================================================
 alias gz='gazebo'
 alias gzs='ros2 launch gazebo_ros gazebo.launch.py'
 alias gzw='export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:~/ros_ws/src'
+
+# =============================================================================
+# WSL2 Specific
+# =============================================================================
+# Open Windows Explorer in current directory
+alias explorer='explorer.exe .'
+# Open VS Code
+alias c='code .'

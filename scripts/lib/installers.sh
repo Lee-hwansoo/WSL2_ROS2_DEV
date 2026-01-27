@@ -1,36 +1,30 @@
 #!/bin/bash
 # scripts/lib/installers.sh
-# Core installation logic
+# Core installation logic - Reusable functions
 
+# =============================================================================
+# KERNEL
+# =============================================================================
 install_hwe_kernel() {
-    # HWE (Hardware Enablement) kernel provides newer kernel for LTS releases
-    # This improves support for newer Intel GPUs and hardware
+    # HWE kernel for better Intel GPU support on Native Linux
     # Returns: 0 = no action needed, 100 = kernel installed (reboot required)
     
     log_info "Checking for HWE kernel availability..."
     apt-get update -qq
     
-    # Get Ubuntu version codename
     local codename=$(lsb_release -cs)
     local hwe_package=""
     
     case "$codename" in
-        jammy)   # 22.04 LTS
-            hwe_package="linux-generic-hwe-22.04"
-            ;;
-        focal)   # 20.04 LTS
-            hwe_package="linux-generic-hwe-20.04"
-            ;;
-        noble)   # 24.04 LTS
-            hwe_package="linux-generic-hwe-24.04"
-            ;;
+        jammy)  hwe_package="linux-generic-hwe-22.04" ;;
+        focal)  hwe_package="linux-generic-hwe-20.04" ;;
+        noble)  hwe_package="linux-generic-hwe-24.04" ;;
         *)
             log_info "No HWE kernel available for $codename, skipping."
             return 0
             ;;
     esac
     
-    # Check if already installed
     if dpkg -l | grep -q "$hwe_package"; then
         log_success "HWE kernel ($hwe_package) is already installed."
         return 0
@@ -40,9 +34,12 @@ install_hwe_kernel() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y "$hwe_package"
     
     log_success "HWE kernel installed."
-    return 100  # Signal that reboot is required
+    return 100
 }
 
+# =============================================================================
+# BASE PACKAGES
+# =============================================================================
 install_base_packages() {
     log_info "Updating package lists..."
     apt-get update -qq
@@ -51,10 +48,69 @@ install_base_packages() {
     DEBIAN_FRONTEND=noninteractive apt-get install -y "${BASE_PACKAGES[@]}"
 }
 
+# =============================================================================
+# ROS2 INSTALLATION
+# =============================================================================
+install_ros2() {
+    local distro="${ROS_DISTRO:-humble}"
+    
+    # Check if already installed
+    if [ -f "/opt/ros/${distro}/setup.bash" ]; then
+        log_success "ROS2 ${distro} is already installed."
+        return 0
+    fi
+    
+    log_info "Installing ROS2 ${distro}..."
+    
+    # Add ROS2 apt repository
+    curl -sSL "$ROS2_GPG_URL" | gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] $ROS2_REPO_URL $(lsb_release -cs) main" \
+        | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+    
+    apt-get update -qq
+    
+    # Install ROS2 packages
+    log_info "Installing ROS2 packages (this may take a while)..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${ROS2_PACKAGES[@]}"
+    
+    log_success "ROS2 ${distro} installed successfully."
+}
+
+# =============================================================================
+# MESA PPA (GPU Acceleration)
+# =============================================================================
+install_mesa_latest() {
+    log_info "Adding Mesa PPA for latest GPU drivers..."
+    
+    # Add oibaf PPA
+    add-apt-repository -y "$MESA_PPA"
+    apt-get update -qq
+    
+    log_info "Upgrading Mesa packages..."
+    DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
+    
+    # Install GPU packages
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${GPU_PACKAGES[@]}"
+    
+    log_success "Mesa GPU drivers updated."
+}
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+install_dev_tools() {
+    log_info "Installing development tools..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${DEV_PACKAGES[@]}"
+    log_success "Development tools installed."
+}
+
+# =============================================================================
+# DOCKER (Optional)
+# =============================================================================
 install_docker() {
     if cmd_exists docker; then
         log_success "Docker is already installed."
-        return
+        return 0
     fi
     
     log_info "Installing Docker Engine..."
@@ -79,58 +135,42 @@ install_docker() {
     
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    
+    log_success "Docker installed."
 }
 
-install_nvidia_toolkit() {
-    if cmd_exists nvidia-ctk; then
-        log_success "NVIDIA Container Toolkit is already installed."
-        return
+enable_docker_service() {
+    if pidof systemd > /dev/null; then
+        systemctl enable docker
+        systemctl start docker || true
+        log_success "Docker service started."
+    else
+        log_info "Systemd not active. Enabling Docker for next boot."
+        systemctl enable docker 2>/dev/null || true
     fi
-
-    log_info "Installing NVIDIA Container Toolkit..."
-    curl -fsSL "$NVIDIA_GPG_URL" | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-    curl -s -L "$NVIDIA_REPO_URL" | \
-      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-      tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-
-    apt-get update -qq
-    apt-get install -y nvidia-container-toolkit
-    
-    # Configure runtime
-    nvidia-ctk runtime configure --runtime=docker
 }
 
-setup_workspace_permissions() {
-    local username=$1
-    local workspace_dir="/home/$username/ros_ws"
-    local env_dir="/home/$username/env"
-    
-    log_info "Ensuring workspace permissions for $username..."
-    
-    # Pre-create directories to ensure ownership
-    mkdir -p "$workspace_dir/src" "$env_dir"
-    
-    # Recursively fix ownership
-    chown -R "$username:$username" "/home/$username"
-    log_success "Permissions fixed for /home/$username"
-}
-
+# =============================================================================
+# USER & WORKSPACE SETUP
+# =============================================================================
 setup_user() {
     local username=$1
     if id -u "$username" &>/dev/null; then
         log_info "User '$username' already exists."
     else
         log_info "Creating user '$username'..."
-        useradd -m -s /bin/bash -G sudo,docker,adm,dialout,plugdev "$username"
+        useradd -m -s /bin/bash -G sudo,adm,dialout,plugdev "$username"
         echo "$username:$username" | chpasswd
         log_success "User '$username' created."
     fi
     
-    # Ensure groups
-    usermod -aG sudo,docker "$username"
-
-    # Fix permissions
-    setup_workspace_permissions "$username"
+    usermod -aG sudo "$username"
+    
+    # Create workspace
+    local ws_dir="/home/$username/ros_ws"
+    mkdir -p "$ws_dir/src"
+    chown -R "$username:$username" "/home/$username"
+    log_success "Workspace created at $ws_dir"
 }
 
 setup_wsl_conf() {
@@ -141,7 +181,6 @@ setup_wsl_conf() {
     if [ -f "$config_src" ]; then
         cp "$config_src" /etc/wsl.conf
         
-        # Ensure default user
         if ! grep -q "\[user\]" /etc/wsl.conf; then
             echo -e "\n[user]\ndefault=$target_user" >> /etc/wsl.conf
         fi
@@ -151,14 +190,55 @@ setup_wsl_conf() {
     fi
 }
 
-enable_docker_service() {
-    # In WSL2, systemd might not be running immediately unless configured
-    if pidof systemd > /dev/null; then
-        systemctl enable docker
-        systemctl start docker || true
-        log_success "Docker service started."
-    else
-        log_info "Systemd not active. Enabling Docker for next boot."
-        systemctl enable docker 2>/dev/null || true
+# =============================================================================
+# ENVIRONMENT CONFIGURATION
+# =============================================================================
+configure_ros_environment() {
+    local username=$1
+    local bashrc="/home/$username/.bashrc"
+    local ros_distro="${ROS_DISTRO:-humble}"
+    
+    log_info "Configuring ROS2 environment for $username..."
+    
+    # Backup bashrc
+    cp "$bashrc" "${bashrc}.bak" 2>/dev/null || true
+    
+    # Add ROS2 source
+    if ! grep -q "source /opt/ros/${ros_distro}/setup.bash" "$bashrc"; then
+        cat >> "$bashrc" << 'EOF'
+
+# =============================================================================
+# ROS2 Environment
+# =============================================================================
+source /opt/ros/humble/setup.bash
+
+# Workspace (if exists)
+if [ -f ~/ros_ws/install/setup.bash ]; then
+    source ~/ros_ws/install/setup.bash
+fi
+
+# Colcon autocomplete
+if [ -f /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash ]; then
+    source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
+fi
+
+# ROS2 Domain ID (change if needed)
+export ROS_DOMAIN_ID=0
+EOF
     fi
+    
+    # Add aliases
+    local aliases_src="$CONFIG_DIR/aliases.sh"
+    if [ -f "$aliases_src" ]; then
+        if ! grep -q "aliases.sh" "$bashrc"; then
+            echo "" >> "$bashrc"
+            echo "# Custom aliases" >> "$bashrc"
+            echo "source ~/env/config/aliases.sh" >> "$bashrc"
+        fi
+    fi
+    
+    # Fix ownership
+    chown "$username:$username" "$bashrc"
+    
+    log_success "ROS2 environment configured."
 }

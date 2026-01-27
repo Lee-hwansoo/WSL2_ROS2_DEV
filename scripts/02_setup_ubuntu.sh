@@ -1,82 +1,150 @@
 #!/bin/bash
-# 02_setup_ubuntu.sh
-# Main entry point for bootstrapping Ubuntu (WSL2 or Native)
+# scripts/02_setup_ubuntu.sh
+# Main entry point for setting up ROS2 development environment
+# Works on both WSL2 and Native Linux
 
 set -e
 set -o pipefail
 
-# --- Context ---
+# =============================================================================
+# CONTEXT
+# =============================================================================
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")/config"
 
-# --- Load Libraries ---
+# =============================================================================
+# LOAD LIBRARIES (SSO)
+# =============================================================================
 source "$SCRIPT_DIR/install_config.sh"
 source "$SCRIPT_DIR/lib/common.sh"
 source "$SCRIPT_DIR/lib/installers.sh"
 
-# --- Arguments ---
+# =============================================================================
+# ARGUMENTS
+# =============================================================================
 TARGET_USER=${1:-ros}
+SKIP_DOCKER=${2:-false}
 
-# --- Main ---
+# =============================================================================
+# MAIN
+# =============================================================================
 ensure_root
 
 # Detect Environment
 if grep -q "WSL" /proc/version; then
     IS_WSL=true
-    log_info "Detected WSL environment."
+    log_info "Detected WSL2 environment."
 else
     IS_WSL=false
     log_info "Detected Native Linux environment."
 fi
 
-log_info "Starting Linux Environment Setup for user: $TARGET_USER"
+echo ""
+log_info "╔══════════════════════════════════════════════════════════════╗"
+log_info "║        ROS2 ${ROS_DISTRO} Development Environment Setup      ║"
+log_info "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+log_info "Target user: $TARGET_USER"
+log_info "Environment: $([ "$IS_WSL" = true ] && echo 'WSL2' || echo 'Native Linux')"
+echo ""
 
-# 1. HWE Kernel (Native Linux only - improves Intel GPU support)
-# WSL2 uses Windows-provided kernel, so HWE is not applicable
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. HWE Kernel (Native Linux only)
+# ─────────────────────────────────────────────────────────────────────────────
 if [ "$IS_WSL" = false ]; then
+    log_info "[1/7] Installing HWE Kernel..."
     install_hwe_kernel
     HWE_RESULT=$?
     
     if [ "$HWE_RESULT" -eq 100 ]; then
         echo ""
         log_warn "═══════════════════════════════════════════════════════════════"
-        log_warn "HWE kernel was installed. REBOOT is required before continuing."
+        log_warn " HWE kernel installed. REBOOT required before continuing."
         log_warn "═══════════════════════════════════════════════════════════════"
         echo ""
-        log_info "Please reboot now with: sudo reboot"
-        log_info "Then re-run this script to continue setup."
-        echo ""
+        log_info "Please run: sudo reboot"
+        log_info "Then re-run this script to continue."
         exit 0
     fi
 else
-    log_info "Skipping HWE kernel (WSL2 uses Windows kernel)"
+    log_info "[1/7] Skipping HWE kernel (WSL2 uses Windows kernel)"
 fi
 
-# 2. Base Setup
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Base Packages
+# ─────────────────────────────────────────────────────────────────────────────
+log_info "[2/7] Installing base packages..."
 install_base_packages
 
-# 3. Docker
-install_docker
-enable_docker_service
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. ROS2 Installation
+# ─────────────────────────────────────────────────────────────────────────────
+log_info "[3/7] Installing ROS2 ${ROS_DISTRO}..."
+install_ros2
 
-# 4. GPU Support (Native Linux only)
-# WSL2 uses D3D12/dxg for GPU passthrough, not nvidia-container-toolkit
-if [ "$IS_WSL" = false ]; then
-    install_nvidia_toolkit
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Mesa PPA (GPU Acceleration)
+# ─────────────────────────────────────────────────────────────────────────────
+log_info "[4/7] Installing latest Mesa GPU drivers..."
+install_mesa_latest
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Development Tools
+# ─────────────────────────────────────────────────────────────────────────────
+log_info "[5/7] Installing development tools..."
+install_dev_tools
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. Docker (Optional)
+# ─────────────────────────────────────────────────────────────────────────────
+if [ "$SKIP_DOCKER" != "true" ]; then
+    log_info "[6/7] Installing Docker..."
+    install_docker
+    enable_docker_service
 else
-    log_info "Skipping NVIDIA Container Toolkit (WSL2 uses D3D12 GPU passthrough)"
+    log_info "[6/7] Skipping Docker installation."
 fi
 
-# 5. User Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# 7. User & Environment Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+log_info "[7/7] Configuring user and environment..."
 setup_user "$TARGET_USER"
 
 if [ "$IS_WSL" = true ]; then
     setup_wsl_conf "$TARGET_USER"
 fi
 
-# 6. Cleanup
+configure_ros_environment "$TARGET_USER"
+
+# Initialize rosdep
+if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
+    log_info "Initializing rosdep..."
+    rosdep init || true
+fi
+
+# Run rosdep update as target user
+su - "$TARGET_USER" -c "rosdep update" || true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cleanup
+# ─────────────────────────────────────────────────────────────────────────────
+log_info "Cleaning up..."
 apt-get autoremove -y
 apt-get clean
 
-log_success "Linux Setup Complete!"
+# ─────────────────────────────────────────────────────────────────────────────
+# Complete
+# ─────────────────────────────────────────────────────────────────────────────
+echo ""
+log_success "╔══════════════════════════════════════════════════════════════╗"
+log_success "║              Setup Complete!                                  ║"
+log_success "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+log_info "Next steps:"
+log_info "  1. Open a new terminal or run: source ~/.bashrc"
+log_info "  2. Verify ROS2: ros2 --version"
+log_info "  3. Check GPU: hw_check"
+log_info "  4. Start coding in ~/ros_ws"
+echo ""

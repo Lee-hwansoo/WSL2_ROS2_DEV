@@ -27,7 +27,7 @@
         "-e",
         "PULSE_SERVER=${env:PULSE_SERVER}",
         "-e",
-        "XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir",
+        "XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir"
     ],
     "containerEnv": {
         // NVIDIA Container Runtime

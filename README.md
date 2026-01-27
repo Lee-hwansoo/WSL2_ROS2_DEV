@@ -92,13 +92,22 @@ ip link show can0  # CAN 장치
 
 ## 🖥️ GPU/하드웨어 관리
 
-| 명령어 | 설명 |
+기본적으로 WSL2는 **Windows가 관리하는 기본 GPU(주로 내장 그래픽)**를 사용하여 배터리 효율을 최적화합니다.
+고성능 시뮬레이션이 필요할 때만 아래 명령어로 **세션별 GPU 전환**이 가능합니다.
+
+### 1. 상태 확인
+- `hw_check`: 전체 하드웨어 진단 (GPU, Vulkan, 디스플레이)
+- `gpu_check`: 현재 활성화된 렌더러 확인 (예: `D3D12 (NVIDIA...)`)
+
+### 2. GPU 전환 (Session Only)
+아래 명령어는 **현재 터미널 세션**에만 적용됩니다. 터미널을 닫으면 다시 기본값(Windows 관리)으로 돌아갑니다.
+
+| 명령어 | 효과 |
 |--------|------|
-| `hw_check` | 종합 하드웨어 진단 (GPU, Vulkan, Display) |
-| `gpu_check` | OpenGL 렌더러 빠른 확인 |
-| `gpu_auto` | GPU 자동 설정 (D3D12/Intel/NVIDIA) |
-| `use_cpu` | 소프트웨어 렌더링 강제 (문제 해결용) |
-| `vulkan_check` | Vulkan 지원 확인 |
+| `use_nvidia` | **NVIDIA GPU** 강제 사용 (High Performance) |
+| `use_intel` | **Intel/AMD 내장 GPU** 사용 (Power Saving) |
+| `use_cpu` | **CPU 전용** (Software Rendering, 트러블슈팅용) |
+| `gpu_auto` | 자동 감지 모드로 복귀 |
 
 ## ⚡ 빠른 시작 명령어
 

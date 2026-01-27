@@ -39,9 +39,15 @@ BASE_PACKAGES=(
 ROS2_PACKAGES=(
     "ros-${ROS_DISTRO}-desktop-full"
     "ros-${ROS_DISTRO}-rmw-cyclonedds-cpp"
+    "ros-${ROS_DISTRO}-gazebo-ros-pkgs"
     "python3-colcon-common-extensions"
     "python3-rosdep"
     "python3-vcstool"
+)
+
+# Simulation packages
+SIM_PACKAGES=(
+    "gazebo"
 )
 
 # Development tools

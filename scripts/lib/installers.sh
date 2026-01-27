@@ -72,6 +72,12 @@ install_ros2() {
     # Install ROS2 packages
     log_info "Installing ROS2 packages (this may take a while)..."
     DEBIAN_FRONTEND=noninteractive apt-get install -y "${ROS2_PACKAGES[@]}"
+
+    # Install Simulation packages
+    if [ ${#SIM_PACKAGES[@]} -gt 0 ]; then
+        log_info "Installing Simulation packages..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${SIM_PACKAGES[@]}"
+    fi
     
     log_success "ROS2 ${distro} installed successfully."
 }

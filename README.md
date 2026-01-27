@@ -1,6 +1,6 @@
 # ROS2 Hunter Lab 환경
 
-Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
+Windows 11/10을 위한 **ROS2 Humble 전문 개발 환경**입니다.
 이 프로젝트는 **WSL2 (Ubuntu 22.04)** 의 설치부터 **Docker Dev Container** (Gazebo, Terminator, 성능 최적화 포함) 구성까지의 모든 과정을 자동화합니다.
 
 ## 🚀 주요 기능

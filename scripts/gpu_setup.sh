@@ -42,6 +42,14 @@ function has_dri() {
     [ -d "/dev/dri" ] && [ -n "$(ls /dev/dri/card* 2>/dev/null)" ]
 }
 
+function has_npu() {
+    [ -d "/dev/accel" ] && [ -n "$(ls /dev/accel/* 2>/dev/null)" ]
+}
+
+function has_vulkan() {
+    command -v vulkaninfo &>/dev/null && vulkaninfo --summary 2>/dev/null | grep -qi "deviceName"
+}
+
 # --- Core Logic ---
 
 function detect_gpu() {
@@ -151,6 +159,21 @@ function gpu_status() {
     fi
     
     check_renderer
+    
+    # NPU Status
+    if has_npu; then
+        log_ok "NPU devices: $(ls /dev/accel/* 2>/dev/null | tr '\n' ' ')"
+    else
+        log_info "NPU: Not detected"
+    fi
+    
+    # Vulkan Status
+    if has_vulkan; then
+        VK_GPU=$(vulkaninfo --summary 2>/dev/null | grep "deviceName" | head -1 | cut -d= -f2 | xargs)
+        log_ok "Vulkan: $VK_GPU"
+    else
+        log_info "Vulkan: Not configured"
+    fi
     
     log_info "=== Environment ==="
     log_info "DISPLAY=${DISPLAY:-not set}"

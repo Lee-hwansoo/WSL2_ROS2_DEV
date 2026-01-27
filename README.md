@@ -12,8 +12,10 @@ Windows 11/10을 위한 **CTO급 ROS2 Humble 전문 개발 환경**입니다.
   - **Docker**: `ccache` 볼륨을 영구적으로 마운트하여 재빌드 속도가 획기적으로 빠릅니다.
   - **도구**: `uv` (초고속 Python 패키지 관리자), `terminator` (GUI 터미널), `can-utils` 등이 사전 설치됩니다.
 - **GPU 가속 및 시각화 (GPU Acceleration)**:
-  - **자동 감지**: 시스템(Intel/NVIDIA/WSL2)에 맞는 최적의 드라이버를 `d3d12`, `nvidia`, `llvmpipe` 중에서 자동으로 선택합니다.
-  - **안정성 보장**: 하드웨어 가속이 불가능할 경우 안정적인 소프트웨어 렌더링으로 자동 전환되어 시각화 도구(RViz2, Gazebo)의 실행을 보장합니다.
+  - **범용 하드웨어 지원**: NVIDIA GPU, Intel iGPU, NPU, CPU 렌더링 모두 자동 감지 및 지원
+  - **D3D12 패스스루**: WSL2 환경에서 Windows GPU 드라이버를 직접 활용하여 최적 성능 제공
+  - **동적 장치 감지**: 컨테이너 시작 전 하드웨어를 스캔하여 호환성 문제 사전 방지
+  - **안정성 보장**: 하드웨어 가속이 불가능할 경우 `llvmpipe`(소프트웨어 렌더링)로 자동 전환
 - **안정성 및 확장성 (Robust & Modular)**:
   - **설정 분리**: `scripts/install_config.ps1`을 통해 배포판 버전이나 설정을 쉽게 변경할 수 있습니다.
   - **안전한 설치**: 윈도우/리눅스 간의 경계를 명확히 하여, 시스템 파일 손상 위험을 원천 차단했습니다.
@@ -137,24 +139,46 @@ WSL 및 도커에서 USB 장치를 사용하려면 윈도우에서 장치를 연
     ifconfig can0
     ```
 
-### 4. GPU 가속 및 시각화 가이드
+### 4. GPU/NPU 가속 및 하드웨어 관리
 
-이 환경은 WSL2의 GPU 파워를 최대한 활용하도록 최적화되어 있습니다. 또한 하드웨어 가속이 불가능한 경우에도 안정적으로 작동하도록 설계되었습니다.
+이 환경은 **NVIDIA GPU, Intel iGPU, NPU, CPU Only** 모든 하드웨어를 자동 감지하고 최적 설정을 적용합니다.
 
-#### 🎮 GPU 모드 관리
-새로운 터미널 명령어를 통해 GPU 설정을 손쉽게 관리할 수 있습니다:
+#### 🔍 하드웨어 진단
 
-- **`gpu_info`**: 현재 GPU 설정 상태와 렌더러(Renderer) 정보를 확인합니다.
-- **`gpu_auto`**: 시스템 환경을 스캔하여 최적의 드라이버(Intel/NVIDIA/Software)를 자동으로 설정합니다. (문제 발생 시 권장)
-- **수동 전환**:
-  - `use_intel`: Intel GPU 설정을 강제합니다.
-  - `use_nvidia`: NVIDIA 설정을 강제합니다.
-  - `use_cpu`: 소프트웨어 렌더링(CPU)으로 전환합니다. (가장 느리지만 가장 안정적)
+| 명령어 | 설명 |
+|--------|------|
+| `hw_check` | **종합 하드웨어 진단** - GPU, NPU, Vulkan, Display 상태 한눈에 확인 |
+| `gpu_check` | OpenGL 렌더러 빠른 확인 |
+| `gpu_info` | GPU 상태 및 환경 변수 상세 정보 |
+| `npu_check` | NPU/AI 가속기 장치 확인 |
+| `vulkan_check` | Vulkan 지원 상태 확인 |
 
-#### 🖥️ 시각화 도구 실행
-RViz2나 Gazebo 실행 시 `BadValue` 등의 에러가 발생한다면, 먼저 `gpu_auto`를 실행하여 환경을 재설정하세요.
+#### 🎮 GPU 모드 전환
 
-> **참고**: WSL2 환경 특성상 일부 시스템에서는 `llvmpipe` (CPU 렌더링)로 자동 전환될 수 있습니다. 이는 시뮬레이션의 안정성을 위한 조치이며 정상입니다.
+| 명령어 | 설명 |
+|--------|------|
+| `gpu_auto` | 시스템 환경을 스캔하여 최적 드라이버 자동 설정 (권장) |
+| `use_intel` | Intel GPU 강제 사용 |
+| `use_nvidia` | NVIDIA GPU 강제 사용 |
+| `use_cpu` | 소프트웨어 렌더링(CPU) - 가장 느리지만 가장 안정적 |
+
+#### 🚀 Gazebo 시뮬레이션
+
+| 명령어 | 설명 |
+|--------|------|
+| `gz` | Gazebo 실행 |
+| `gzs` | `ros2 launch gazebo_ros gazebo.launch.py` |
+| `gzw` | Gazebo 모델 경로에 워크스페이스 추가 |
+
+#### 🖥️ 트러블슈팅
+
+RViz2나 Gazebo 실행 시 에러가 발생한다면:
+
+1. `hw_check`로 하드웨어 상태 확인
+2. `gpu_auto`로 GPU 설정 재초기화
+3. 여전히 문제 시 `use_cpu`로 소프트웨어 렌더링 전환
+
+> **참고**: WSL2 환경에서는 D3D12 백엔드를 통해 Windows GPU 드라이버를 직접 사용합니다.
 
 ## 📂 디렉토리 구조
 
@@ -166,6 +190,8 @@ RViz2나 Gazebo 실행 시 `BadValue` 등의 에러가 발생한다면, 먼저 `
 │   ├── terminator_config   # GUI 터미널 레이아웃 및 단축키 설정
 │   └── wsl.conf            # 각 배포판 부팅 설정 (Systemd 등)
 ├── .devcontainer/          # Dev Container 정의
+│   ├── scripts/
+│   │   └── detect_devices.sh  # [NEW] 컨테이너 시작 전 하드웨어 감지
 │   ├── Dockerfile          # ROS2 Humble + Gazebo + Utils 이미지 설계도
 │   └── devcontainer.json   # VS Code 연동 및 볼륨 마운트 설정
 ├── scripts/                # 자동화 스크립트 (모듈화됨)
@@ -174,10 +200,11 @@ RViz2나 Gazebo 실행 시 `BadValue` 등의 에러가 발생한다면, 먼저 `
 │   │   └── installers.sh   # 패키지 설치 로직 분리
 │   ├── install_config.ps1  # [설정] Windows 설치 설정 (버전, 경로 등)
 │   ├── install_config.sh   # [설정] Linux 설치 설정 (패키지 목록 등)
-│   ├── 01_setup_windows.ps1   # [Windows용] 설치 진입점 (Entry Point)
+│   ├── 01_setup_windows.ps1   # [Windows용] 설치 진입점
 │   ├── 02_setup_ubuntu.sh     # [Linux용] WSL 초기 세팅 및 패키지 설치
-│   ├── sync_to_wsl.ps1        # [Windows용] 설정 동기화 (Split-Brain 대응)
+│   ├── sync_to_wsl.ps1        # [Windows용] 설정 동기화
 │   ├── gpu_setup.sh        # [GPU] 드라이버 자동 감지 및 환경 설정
+│   ├── hardware_check.sh   # [NEW] 종합 하드웨어 진단 도구
 │   └── init_workspace.sh   # [내부용] 컨테이너 실행 시 환경 초기화
 └── README.md
 ```
@@ -230,5 +257,10 @@ classDiagram
 
 ## 🛑 트러블슈팅
 
-- **"WSL error"**: BIOS 설정에서 가상화(Virtualization/VT-x)가 켜져 있는지 확인하세요.
-- **"Terminator config not found"**: 터미널에서 `bash scripts/init_workspace.sh`를 수동으로 한 번 실행해주시면 설정 링크가 복구됩니다.
+| 문제 | 해결 방법 |
+|------|----------|
+| "WSL error" | BIOS에서 가상화(VT-x) 활성화 확인 |
+| "Terminator config not found" | `bash scripts/init_workspace.sh` 수동 실행 |
+| Gazebo 검은 화면 | `gpu_auto` 실행 후 재시도, 안되면 `use_cpu` |
+| GPU 인식 안됨 | `hw_check`로 상태 확인, Windows GPU 드라이버 업데이트 |
+| 컨테이너 시작 실패 | Docker Desktop 재시작, WSL `wsl --shutdown` 후 재시도 |

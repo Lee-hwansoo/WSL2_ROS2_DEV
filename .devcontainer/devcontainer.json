@@ -1,22 +1,42 @@
 {
-    "name": "ROS2 Dev Env",
+    "name": "ROS2 Gazebo Universal",
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
             "USERNAME": "ros"
         }
     },
+    // Pre-container device detection (cross-platform compatibility)
+    "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/scripts/detect_devices.sh || true",
     "runArgs": [
-        "--network=host",
-        "--privileged",
-        // IPC host mode for Qt/GTK shared memory (fixes SHM errors)
+        // 1. Network, IPC (ROS2)
+        "--net=host",
         "--ipc=host",
-        // Windows GPU/NPU Universal Connector
+        "--pid=host",
+        // 2. security, permission
+        "--security-opt=seccomp:unconfined",
+        "--security-opt=apparmor:unconfined",
+        // 3. Device Mapping (GPU/NPU via D3D12 passthrough)
         "--device=/dev/dxg",
         "--device=/dev/dri",
+        // 4. Environment Variables
         "-e",
-        "DISPLAY=${env:DISPLAY}"
+        "DISPLAY=${env:DISPLAY}",
+        "-e",
+        "WAYLAND_DISPLAY=${env:WAYLAND_DISPLAY}",
+        "-e",
+        "PULSE_SERVER=${env:PULSE_SERVER}",
+        "-e",
+        "XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir",
     ],
+    "containerEnv": {
+        // NVIDIA Container Runtime
+        "NVIDIA_VISIBLE_DEVICES": "all",
+        "NVIDIA_DRIVER_CAPABILITIES": "all",
+        // Mesa/OpenGL (driver auto-detected by gpu_setup.sh)
+        "LIBGL_ALWAYS_SOFTWARE": "0",
+        "QT_X11_NO_MITSHM": "1"
+    },
     "workspaceMount": "source=${localWorkspaceFolder},target=/home/ros/env,type=bind",
     "workspaceFolder": "/home/ros/ros_ws",
     "mounts": [
@@ -31,13 +51,6 @@
         // WSLg Wayland/Audio support (enhanced GUI compatibility)
         "source=/mnt/wslg,target=/mnt/wslg,type=bind,readonly"
     ],
-    "containerEnv": {
-        // WSLg Wayland/Audio integration
-        "WAYLAND_DISPLAY": "wayland-0",
-        "PULSE_SERVER": "/mnt/wslg/PulseServer",
-        // Qt compatibility
-        "QT_X11_NO_MITSHM": "1"
-    },
     "customizations": {
         "vscode": {
             "settings": {
@@ -60,5 +73,6 @@
         }
     },
     "postCreateCommand": "bash /home/ros/env/scripts/init_workspace.sh",
+    "postStartCommand": "source /home/ros/env/scripts/gpu_setup.sh auto 2>/dev/null || true",
     "remoteUser": "ros"
 }

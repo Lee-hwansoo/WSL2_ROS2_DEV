@@ -65,14 +65,26 @@ function detect_gpu() {
 }
 
 function setup_d3d12() {
-    # Explicitly force D3D12 driver for WSL2 GPU passthrough
-    # Auto-detection often fails and falls back to llvmpipe
+    # Set up library path first (required for D3D12)
+    export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
+    
+    # Check if D3D12 libraries actually exist
+    if [ ! -f "/usr/lib/wsl/lib/libd3d12.so" ] && [ ! -f "/usr/lib/wsl/lib/libdxcore.so" ]; then
+        log_warn "D3D12 libraries not found in /usr/lib/wsl/lib"
+        log_warn "Falling back to software rendering"
+        setup_software
+        return
+    fi
+    
+    # Try D3D12 driver
     export MESA_LOADER_DRIVER_OVERRIDE="d3d12"
     export GALLIUM_DRIVER="d3d12"
-    export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
     unset LIBGL_ALWAYS_SOFTWARE
     unset __NV_PRIME_RENDER_OFFLOAD
     unset __GLX_VENDOR_LIBRARY_NAME
+    
+    # Quick test if D3D12 actually works (optional, can be slow)
+    # If glxinfo works with D3D12, great. If not, we'll catch it later.
     log_ok "Configured for WSL2 D3D12 GPU passthrough"
 }
 

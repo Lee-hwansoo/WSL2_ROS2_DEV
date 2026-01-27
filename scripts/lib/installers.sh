@@ -2,6 +2,47 @@
 # scripts/lib/installers.sh
 # Core installation logic
 
+install_hwe_kernel() {
+    # HWE (Hardware Enablement) kernel provides newer kernel for LTS releases
+    # This improves support for newer Intel GPUs and hardware
+    # Returns: 0 = no action needed, 100 = kernel installed (reboot required)
+    
+    log_info "Checking for HWE kernel availability..."
+    apt-get update -qq
+    
+    # Get Ubuntu version codename
+    local codename=$(lsb_release -cs)
+    local hwe_package=""
+    
+    case "$codename" in
+        jammy)   # 22.04 LTS
+            hwe_package="linux-generic-hwe-22.04"
+            ;;
+        focal)   # 20.04 LTS
+            hwe_package="linux-generic-hwe-20.04"
+            ;;
+        noble)   # 24.04 LTS
+            hwe_package="linux-generic-hwe-24.04"
+            ;;
+        *)
+            log_info "No HWE kernel available for $codename, skipping."
+            return 0
+            ;;
+    esac
+    
+    # Check if already installed
+    if dpkg -l | grep -q "$hwe_package"; then
+        log_success "HWE kernel ($hwe_package) is already installed."
+        return 0
+    fi
+    
+    log_info "Installing HWE kernel: $hwe_package"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "$hwe_package"
+    
+    log_success "HWE kernel installed."
+    return 100  # Signal that reboot is required
+}
+
 install_base_packages() {
     log_info "Updating package lists..."
     apt-get update -qq

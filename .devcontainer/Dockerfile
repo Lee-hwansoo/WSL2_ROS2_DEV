@@ -5,10 +5,13 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # 1. Install Base Tools and Dependencies
+# Add kisak-mesa PPA for latest Mesa drivers (improves D3D12/Intel iGPU support in WSL2)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
+    && add-apt-repository -y ppa:kisak/kisak-mesa \
     && add-apt-repository universe \
-    && apt-get update && apt-get install -y --no-install-recommends \
+    && apt-get update && apt-get full-upgrade -y \
+    && apt-get install -y --no-install-recommends \
     ccache \
     curl \
     git \
@@ -17,8 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     psmisc \
     dbus-x11 \
     mesa-utils \
-    libgl1-mesa-glx \
     libgl1-mesa-dri \
+    libgl1-mesa-glx \
+    libglx-mesa0 \
+    mesa-vulkan-drivers \
     can-utils \
     net-tools \
     python3-pip \
@@ -37,7 +42,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Hardware Monitoring Tools
     intel-gpu-tools \
     nvtop \
-    mesa-utils \
     vulkan-tools \
     # EGL/Wayland Support (Qt6/Modern GUI Apps)
     libegl1-mesa-dev \

@@ -25,7 +25,9 @@ install_hwe_kernel() {
             ;;
     esac
     
-    if dpkg -l | grep -q "$hwe_package"; then
+    # Check if package is installed using dpkg-query (more robust than dpkg -l)
+    local pkg_status=$(dpkg-query -W -f='${Status}' "$hwe_package" 2>/dev/null || true)
+    if [[ "$pkg_status" == "install ok installed" ]]; then
         log_success "HWE kernel ($hwe_package) is already installed."
         return 0
     fi

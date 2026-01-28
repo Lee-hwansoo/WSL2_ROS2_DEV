@@ -23,38 +23,50 @@ has_nvidia() { command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null 2>&1;
 # =============================================================================
 # GPU Setup Functions
 # =============================================================================
+reset_gpu_env() {
+    # Clear all overrides to ensure a clean slate
+    unset LD_LIBRARY_PATH
+    unset MESA_LOADER_DRIVER_OVERRIDE
+    unset GALLIUM_DRIVER
+    unset LIBGL_ALWAYS_SOFTWARE
+    unset MESA_D3D12_DEFAULT_ADAPTER_NAME
+    unset __NV_PRIME_RENDER_OFFLOAD
+    unset __GLX_VENDOR_LIBRARY_NAME
+}
+
 setup_d3d12() {
     export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH:-}"
     export MESA_LOADER_DRIVER_OVERRIDE="d3d12"
     export GALLIUM_DRIVER="d3d12"
-    unset LIBGL_ALWAYS_SOFTWARE
     log_ok "D3D12 GPU passthrough configured"
 }
 
 setup_nvidia() {
+    reset_gpu_env
     if is_wsl2; then
         export MESA_D3D12_DEFAULT_ADAPTER_NAME="NVIDIA"
         setup_d3d12
     else
         export __NV_PRIME_RENDER_OFFLOAD=1
         export __GLX_VENDOR_LIBRARY_NAME="nvidia"
-        unset LIBGL_ALWAYS_SOFTWARE
     fi
     log_ok "NVIDIA GPU configured"
 }
 
 setup_intel() {
+    reset_gpu_env
     if is_wsl2; then
         export MESA_D3D12_DEFAULT_ADAPTER_NAME="Intel"
         setup_d3d12
     fi
+    # Native Linux Intel uses standard system drivers
     log_ok "Intel GPU configured"
 }
 
 setup_software() {
+    reset_gpu_env
     export LIBGL_ALWAYS_SOFTWARE=1
     export GALLIUM_DRIVER="llvmpipe"
-    unset MESA_LOADER_DRIVER_OVERRIDE
     log_warn "Software rendering (CPU) configured"
 }
 
@@ -63,6 +75,7 @@ setup_software() {
 # =============================================================================
 setup_auto() {
     if is_wsl2; then
+        reset_gpu_env
         setup_d3d12
     elif has_nvidia; then
         setup_nvidia

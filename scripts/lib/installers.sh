@@ -172,12 +172,19 @@ setup_user() {
         log_info "User '$username' already exists."
     else
         log_info "Creating user '$username'..."
-        useradd -m -s /bin/bash -G sudo,adm,dialout,plugdev "$username"
+        # Create necessary groups if they don't exist (for Native GPU access)
+        getent group render >/dev/null || groupadd -r render
+        getent group video >/dev/null || groupadd -r video
+        
+        useradd -m -s /bin/bash -G sudo,adm,dialout,plugdev,render,video "$username"
         echo "$username:$username" | chpasswd
         log_success "User '$username' created."
     fi
     
-    usermod -aG sudo "$username"
+    # Update groups for existing users
+    getent group render >/dev/null || groupadd -r render
+    getent group video >/dev/null || groupadd -r video
+    usermod -aG sudo,render,video "$username"
     
     # Create workspace
     local ws_dir="/home/$username/ros_ws"

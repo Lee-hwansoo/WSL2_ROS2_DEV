@@ -89,17 +89,17 @@ setup_auto() {
 # =============================================================================
 gpu_status() {
     log_info "=== GPU Status ==="
-    
+
     if is_wsl2; then
         log_info "Environment: WSL2"
     else
         log_info "Environment: Native Linux"
     fi
-    
+
     if has_nvidia; then
         log_ok "NVIDIA: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
     fi
-    
+
     # OpenGL renderer
     local renderer=$(glxinfo 2>/dev/null | grep "OpenGL renderer" | cut -d: -f2 | xargs)
     if [ -n "$renderer" ]; then
@@ -111,7 +111,7 @@ gpu_status() {
     else
         log_warn "Renderer: Unable to detect"
     fi
-    
+
     log_info "=== Environment Variables ==="
     log_info "DISPLAY=${DISPLAY:-not set}"
     log_info "MESA_LOADER_DRIVER_OVERRIDE=${MESA_LOADER_DRIVER_OVERRIDE:-not set}"

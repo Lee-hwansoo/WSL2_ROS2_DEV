@@ -48,10 +48,10 @@ retry() {
 detect_gpu_vendor() {
     # Returns: nvidia, amd, intel, or none
     local vendor="none"
-    
+
     if cmd_exists lspci; then
         local pci_info=$(lspci -vnn 2>/dev/null | grep -i "VGA\|3D\|Display")
-        
+
         if echo "$pci_info" | grep -qi "nvidia"; then
             vendor="nvidia"
         elif echo "$pci_info" | grep -qi "amd"; then
@@ -61,7 +61,7 @@ detect_gpu_vendor() {
         fi
     elif cmd_exists lshw; then
         local lshw_info=$(lshw -C display 2>/dev/null)
-        
+
         if echo "$lshw_info" | grep -qi "nvidia"; then
             vendor="nvidia"
         elif echo "$lshw_info" | grep -qi "amd"; then
@@ -70,6 +70,6 @@ detect_gpu_vendor() {
             vendor="intel"
         fi
     fi
-    
+
     echo "$vendor"
 }

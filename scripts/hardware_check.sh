@@ -59,7 +59,7 @@ if command -v glxinfo &>/dev/null; then
     RENDERER=$(glxinfo 2>/dev/null | grep "OpenGL renderer" | cut -d: -f2 | xargs)
     VENDOR=$(glxinfo 2>/dev/null | grep "OpenGL vendor" | cut -d: -f2 | xargs)
     VERSION=$(glxinfo 2>/dev/null | grep "OpenGL version" | cut -d: -f2 | xargs)
-    
+
     if [ -n "$RENDERER" ]; then
         if echo "$RENDERER" | grep -qi "llvmpipe"; then
             echo -e "  ${YELLOW}⚠${NC} Renderer: $RENDERER ${YELLOW}(Software)${NC}"

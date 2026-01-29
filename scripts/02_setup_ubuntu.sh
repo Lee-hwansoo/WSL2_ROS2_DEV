@@ -23,7 +23,7 @@ source "$SCRIPT_DIR/lib/installers.sh"
 # =============================================================================
 # ARGUMENTS
 # =============================================================================
-TARGET_USER=${1:-ros}
+TARGET_USER=${1:-ubuntu}
 HOST_CACHE_DIR=$2
 
 # =============================================================================
@@ -63,7 +63,7 @@ if [ "$IS_WSL" = false ]; then
     log_info "[1/6] Installing HWE Kernel..."
     install_hwe_kernel
     HWE_RESULT=$?
-    
+
     if [ "$HWE_RESULT" -eq 100 ]; then
         echo ""
         log_warn "═══════════════════════════════════════════════════════════════"
@@ -97,10 +97,10 @@ if [ "$IS_WSL" = false ]; then
     log_info "[4/6] Detecting GPU for Native Linux..."
     GPU_VENDOR=$(detect_gpu_vendor)
     log_info "Detected GPU Vendor: $GPU_VENDOR"
-    
+
     install_gpu_drivers "$GPU_VENDOR"
     GPU_RESULT=$?
-    
+
     if [ "$GPU_RESULT" -eq 100 ]; then
         echo ""
         log_warn "═══════════════════════════════════════════════════════════════"
@@ -115,7 +115,7 @@ else
     log_info "[4/6] WSL2 Environment detected. Installing Mesa utils only..."
     # WSL2 uses Windows drivers, but needs mesa-utils for some tools
     DEBIAN_FRONTEND=noninteractive apt-get install -y mesa-utils
-    
+
     # Check for Nvidia GPU in WSL (via Passthrough)
     if command -v nvidia-smi &>/dev/null; then
         log_info "Nvidia GPU detected in WSL2 (via Passthrough)."

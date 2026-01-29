@@ -74,7 +74,7 @@ function Assert-Admin {
 function Enable-WslFeatures {
     Log-Info "Verifying Windows Features for WSL2..."
     $restartRequired = $false
-    
+
     foreach ($feature in $SetupConfig.RequiredWslFeatures) {
         $status = Get-WindowsOptionalFeature -Online -FeatureName $feature
         if ($status.State -ne "Enabled") {
@@ -95,11 +95,11 @@ function Enable-WslFeatures {
 
 function Install-WindowsDependencies {
     Log-Info "Checking Windows dependencies..."
-    
+
     foreach ($dep in $SetupConfig.WindowsDependencies) {
         $pkgName = $dep.Name
         $cmdCheck = $dep.CheckCommand
-        
+
         # Check if already installed
         if (Get-Command $cmdCheck -ErrorAction SilentlyContinue) {
             Log-Success "$pkgName is already installed."
@@ -121,13 +121,13 @@ function Install-WindowsDependencies {
             Log-Info "Installing $pkgName (UAC prompt may appear)..."
             # /passive: Shows progress bar but no user interaction needed
             $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$tempMsi`" /passive" -PassThru -Wait
-            
+
             if ($proc.ExitCode -eq 0) {
                 Log-Success "$pkgName installed successfully."
             } else {
                 Log-Warn "$pkgName installation failed (Exit Code: $($proc.ExitCode))."
             }
-            
+
             Remove-Item $tempMsi -Force -ErrorAction SilentlyContinue
         }
     }
@@ -135,13 +135,13 @@ function Install-WindowsDependencies {
 
 function Get-OptimalInstallPath {
     if (-not [string]::IsNullOrWhiteSpace($InstallPath)) { return $InstallPath }
-    
+
     # Smart Drive Detection: Prefer D:\ or E:\ over C:\ if they exist
     $targetDrive = "C:\"
     foreach ($drive in @("D:\", "E:\")) {
-        if (Test-Path $drive) { 
+        if (Test-Path $drive) {
             $targetDrive = $drive
-            break 
+            break
         }
     }
     return Join-Path $targetDrive "WSL\$DistroName"
@@ -170,8 +170,8 @@ function Get-HardwareProfile {
     }
 
     try {
-        if (Get-Command "nvidia-smi" -ErrorAction SilentlyContinue) { 
-            $profile.HasNvidia = $true 
+        if (Get-Command "nvidia-smi" -ErrorAction SilentlyContinue) {
+            $profile.HasNvidia = $true
             $profile.Description += "[NVIDIA RTX] "
         }
     } catch {}
@@ -193,15 +193,15 @@ function Get-HardwareProfile {
             $profile.Description += "[Intel NPU] "
         }
     } catch {}
-    
+
     if ($profile.Description -eq "") { $profile.Description = "[CPU Only]" }
-    
+
     return $profile
 }
 
 function Get-SystemHealth {
     Log-Info "Running System Health 'Doctor' Checks..."
-    
+
     # WSL Version Check
     $wslStatus = wsl --status
     if ($wslStatus -match "Kernel version: 5\.10\.102\.1") {
@@ -248,7 +248,7 @@ function Install-WslDistro {
     if (-not $DryRun) {
         if (-not (Test-Path $targetPath)) { New-Item -ItemType Directory -Path $targetPath -Force | Out-Null }
         if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null }
-        
+
         if (-not (Test-Path $tarPath)) {
             Log-Info "Downloading Ubuntu Core RootFS..."
             Invoke-WebRequest -Uri $SetupConfig.DistroImage -OutFile $tarPath
@@ -271,7 +271,7 @@ function Install-WslDistro {
 
 function Bootstrap-Linux {
     Log-Info "Bootstrapping Linux Environment inside WSL..."
-    
+
     $targetPath = Get-OptimalInstallPath
 
     # Calculate path to Linux script visible from WSL
@@ -293,10 +293,10 @@ function Bootstrap-Linux {
 
 function Copy-Project-To-WSL {
     Log-Info "Copying Setup Project to WSL user home..."
-    
+
     $projectRoot = Split-Path $ScriptDir -Parent
     $wslDest = "\\wsl.localhost\$DistroName\home\$TargetUser\env"
-    
+
     if ($DryRun) {
         Log-Info "[DRY-RUN] Would copy '$projectRoot' to '$wslDest'"
         return
@@ -306,7 +306,7 @@ function Copy-Project-To-WSL {
         if (-not (Test-Path $wslDest)) {
             New-Item -ItemType Directory -Path $wslDest -Force | Out-Null
         }
-        
+
         Log-Info "Copying files (this may take a moment)..."
         # Exclude unnecessary files to keep WSL clean
         # - .git: Repo history not needed in env
@@ -314,7 +314,7 @@ function Copy-Project-To-WSL {
         # - .vscode: Local VS Code settings
         # - *.ps1: Windows scripts not needed in Linux
         Get-ChildItem -Path $projectRoot -Exclude ".git", "Cache", ".vscode", "tmp" | Where-Object { $_.Name -notlike "*.ps1" } | Copy-Item -Destination $wslDest -Recurse -Force
-        
+
         Log-Success "Project copied dynamically to WSL: ~/env"
 
         # Create sibling workspace directory for data persistence (ros_ws)
@@ -336,16 +336,16 @@ function Copy-Project-To-WSL {
 try {
     Clear-Host
     Log-Info "Starting ROS2 Environment Setup ($DistroName)"
-    
+
     Assert-Admin
     Enable-WslFeatures
-    
+
     if (-not $DryRun) { wsl --update }
 
     Install-WindowsDependencies
     Update-GlobalWslConfig
     Configure-HardwareEnvironment
-    
+
     Install-WslDistro
     Bootstrap-Linux
     Copy-Project-To-WSL
@@ -353,7 +353,7 @@ try {
     Verify-WslDriverProjection -DistroName $DistroName
 
     Log-Success "Setup Completed Successfully!"
-    
+
     if (-not $DryRun) {
         Write-Host ""
         Log-Warn "NOTE: A 'wsl --shutdown' is recommended to fully apply all settings."

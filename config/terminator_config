@@ -34,7 +34,7 @@
 [profiles]
     [[default]]
         login_shell = True
- 
+
         use_system_font = False
         font = D2Coding 12
         title_font = D2Coding 12

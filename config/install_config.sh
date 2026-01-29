@@ -89,7 +89,6 @@ GPU_PACKAGES_COMMON=(
 
 GPU_PACKAGES_INTEL=(
     "intel-opencl-icd"
-    "intel-level-zero-gpu"
     "intel-gpu-tools"
     "intel-media-va-driver-non-free"
     "libmfx1"

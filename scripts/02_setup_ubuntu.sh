@@ -98,8 +98,7 @@ if [ "$IS_WSL" = false ]; then
     GPU_VENDOR=$(detect_gpu_vendor)
     log_info "Detected GPU Vendor: $GPU_VENDOR"
 
-    install_gpu_drivers "$GPU_VENDOR"
-    GPU_RESULT=$?
+    install_gpu_drivers "$GPU_VENDOR" && GPU_RESULT=0 || GPU_RESULT=$?
 
     if [ "$GPU_RESULT" -eq 100 ]; then
         echo ""

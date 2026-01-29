@@ -122,8 +122,7 @@ install_nvidia_drivers() {
     log_info "Running ubuntu-drivers autoinstall..."
     if ubuntu-drivers autoinstall; then
         log_success "Nvidia drivers installed."
-        # Signal reboot requirement
-        return 100
+        # Signal reboot requirement will happen at end of function
     else
         log_warn "ubuntu-drivers autoinstall failed. You may need to install drivers manually."
         return 1
@@ -136,7 +135,14 @@ install_nvidia_drivers() {
         log_success "CUDA Toolkit installed."
     fi
 
-    return 100
+    # Check if drivers are actually loaded and working
+    if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
+        log_success "Nvidia drivers are installed and operational."
+        return 0
+    else
+        log_warn "Nvidia drivers installed but not loaded (or nvidia-smi failed)."
+        return 100
+    fi
 }
 
 install_amd_drivers() {

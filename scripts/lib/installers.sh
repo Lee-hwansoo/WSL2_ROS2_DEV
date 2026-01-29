@@ -87,20 +87,89 @@ install_ros2() {
 # =============================================================================
 # MESA PPA (GPU Acceleration)
 # =============================================================================
-install_mesa_latest() {
-    log_info "Adding Mesa PPA for latest GPU drivers..."
+install_gpu_drivers() {
+    local vendor=$1
+    log_info "Installing GPU drivers for vendor: $vendor"
     
-    # Add oibaf PPA
+    # 1. Install Common GPU Utilities
+    log_info "Installing common GPU utilities..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${GPU_PACKAGES_COMMON[@]}"
+    
+    # 2. Vendor Specifics
+    case "$vendor" in
+        nvidia)
+            install_nvidia_drivers
+            ;;
+        amd)
+            install_amd_drivers
+            ;;
+        intel)
+            install_intel_drivers
+            ;;
+        *)
+            log_info "No specific driver setup for vendor: $vendor"
+            ;;
+    esac
+}
+
+install_nvidia_drivers() {
+    log_info "Detected Nvidia GPU. Preparing driver installation..."
+    
+    # Install ubuntu-drivers tool
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ubuntu-drivers-common
+    
+    # Auto-install recommended drivers
+    log_info "Running ubuntu-drivers autoinstall..."
+    if ubuntu-drivers autoinstall; then
+        log_success "Nvidia drivers installed."
+        # Signal reboot requirement
+        return 100 
+    else
+        log_warn "ubuntu-drivers autoinstall failed. You may need to install drivers manually."
+        return 1
+    fi
+
+    # Install CUDA Toolkit
+    if [ ${#CUDA_PACKAGES[@]} -gt 0 ]; then
+        log_info "Installing CUDA Toolkit..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${CUDA_PACKAGES[@]}"
+        log_success "CUDA Toolkit installed."
+    fi
+    
+    return 100
+}
+
+install_amd_drivers() {
+    log_info "Detected AMD GPU. Configuring Mesa..."
+    
+    # Add Mesa PPA (KISAK)
     add-apt-repository -y "$MESA_PPA"
     apt-get update -qq
     
-    log_info "Upgrading Mesa packages..."
+    log_info "Upgrading Mesa packages for AMD..."
     DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
     
-    # Install GPU packages
-    DEBIAN_FRONTEND=noninteractive apt-get install -y "${GPU_PACKAGES[@]}"
+    if [ ${#GPU_PACKAGES_AMD[@]} -gt 0 ]; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${GPU_PACKAGES_AMD[@]}"
+    fi
     
-    log_success "Mesa GPU drivers updated."
+    log_success "AMD/Mesa drivers updated."
+}
+
+install_intel_drivers() {
+    log_info "Detected Intel GPU. Configuring Media & Compute drivers..."
+    
+    # Add Mesa PPA (KISAK) - Often good for newer Intel iGPUs too
+    add-apt-repository -y "$MESA_PPA"
+    apt-get update -qq
+    
+    log_info "Upgrading Mesa packages for Intel..."
+    DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
+    
+    log_info "Installing Intel specific packages..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${GPU_PACKAGES_INTEL[@]}"
+    
+    log_success "Intel drivers installed."
 }
 
 # =============================================================================

@@ -64,8 +64,13 @@ DEV_PACKAGES=(
     "clangd"
 )
 
+# CUDA/Nvidia packages
+CUDA_PACKAGES=(
+    "nvidia-cuda-toolkit"
+)
+
 # GPU/Graphics packages
-GPU_PACKAGES=(
+GPU_PACKAGES_COMMON=(
     "mesa-utils"
     "libwayland-client0"
     "libgl1-mesa-dri"
@@ -79,12 +84,18 @@ GPU_PACKAGES=(
     "vulkan-tools"
     "libvulkan-dev"
     "vulkan-validationlayers"
+    "clinfo"
+)
+
+GPU_PACKAGES_INTEL=(
+    "intel-opencl-icd"
+    "intel-level-zero-gpu"
     "intel-gpu-tools"
     "intel-media-va-driver-non-free"
     "libmfx1"
-    "intel-opencl-icd"
-    "clinfo"
 )
+
+GPU_PACKAGES_AMD=() # Mesa covers most AMD needs, can add specifics if needed
 
 # =============================================================================
 # REPOSITORY URLS

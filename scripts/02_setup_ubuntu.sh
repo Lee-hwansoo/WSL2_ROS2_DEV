@@ -91,10 +91,39 @@ log_info "[3/6] Installing ROS2 ${ROS_DISTRO}..."
 install_ros2
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Mesa PPA (GPU Acceleration)
+# 4. GPU Drivers (Native vs WSL)
 # ─────────────────────────────────────────────────────────────────────────────
-log_info "[4/6] Installing latest Mesa GPU drivers..."
-install_mesa_latest
+if [ "$IS_WSL" = false ]; then
+    log_info "[4/6] Detecting GPU for Native Linux..."
+    GPU_VENDOR=$(detect_gpu_vendor)
+    log_info "Detected GPU Vendor: $GPU_VENDOR"
+    
+    install_gpu_drivers "$GPU_VENDOR"
+    GPU_RESULT=$?
+    
+    if [ "$GPU_RESULT" -eq 100 ]; then
+        echo ""
+        log_warn "═══════════════════════════════════════════════════════════════"
+        log_warn " GPU drivers installed. REBOOT required before continuing."
+        log_warn "═══════════════════════════════════════════════════════════════"
+        echo ""
+        log_info "Please run: sudo reboot"
+        log_info "Then re-run this script to continue."
+        exit 0
+    fi
+else
+    log_info "[4/6] WSL2 Environment detected. Installing Mesa utils only..."
+    # WSL2 uses Windows drivers, but needs mesa-utils for some tools
+    DEBIAN_FRONTEND=noninteractive apt-get install -y mesa-utils
+    
+    # Check for Nvidia GPU in WSL (via Passthrough)
+    if command -v nvidia-smi &>/dev/null; then
+        log_info "Nvidia GPU detected in WSL2 (via Passthrough)."
+        log_info "Installing CUDA Toolkit for development..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${CUDA_PACKAGES[@]}"
+        log_success "CUDA Toolkit installed."
+    fi
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. Development Tools

@@ -20,6 +20,7 @@
 Param(
     [string]$DistroName,
     [string]$TargetUser,
+    [string]$TargetWorkspace,
     [string]$InstallPath,
     [Switch]$DryRun
 )
@@ -36,9 +37,24 @@ try {
     exit 1
 }
 
-# Apply Defaults from Config if not provided
-if ([string]::IsNullOrWhiteSpace($DistroName)) { $DistroName = $SetupConfig.DistroName }
-if ([string]::IsNullOrWhiteSpace($TargetUser)) { $TargetUser = $SetupConfig.DefaultUser }
+# Apply Defaults / Interactive Prompts
+if ([string]::IsNullOrWhiteSpace($DistroName)) {
+    $defaultDistro = $SetupConfig.DistroName
+    $inputDistro = Read-Host "Enter WSL Distro Name [default: $defaultDistro]"
+    if ([string]::IsNullOrWhiteSpace($inputDistro)) { $DistroName = $defaultDistro } else { $DistroName = $inputDistro }
+}
+
+if ([string]::IsNullOrWhiteSpace($TargetUser)) {
+    $defaultUser = $SetupConfig.DefaultUser
+    $inputUser = Read-Host "Enter Linux Username [default: $defaultUser]"
+    if ([string]::IsNullOrWhiteSpace($inputUser)) { $TargetUser = $defaultUser } else { $TargetUser = $inputUser }
+}
+
+if ([string]::IsNullOrWhiteSpace($TargetWorkspace)) {
+    $defaultWorkspace = "ros_ws"
+    $inputWorkspace = Read-Host "Enter Workspace Name [default: $defaultWorkspace]"
+    if ([string]::IsNullOrWhiteSpace($inputWorkspace)) { $TargetWorkspace = $defaultWorkspace } else { $TargetWorkspace = $inputWorkspace }
+}
 
 # --- Logging Functions ---
 
@@ -288,7 +304,7 @@ function Bootstrap-Linux {
 
     Log-Info "Passing Host Cache Path to Linux: $wslCachePath"
 
-    Exec-Command "wsl" @("-d", $DistroName, "-u", "root", "--", "bash", $linuxScript, $TargetUser, $wslCachePath)
+    Exec-Command "wsl" @("-d", $DistroName, "-u", "root", "--", "bash", $linuxScript, $TargetUser, $wslCachePath, $TargetWorkspace)
 }
 
 function Copy-Project-To-WSL {
@@ -318,12 +334,12 @@ function Copy-Project-To-WSL {
         Log-Success "Project copied dynamically to WSL: ~/env"
 
         # Create sibling workspace directory for data persistence (ros_ws)
-        $wslWorkspace = "\\wsl.localhost\$DistroName\home\$TargetUser\ros_ws"
+        $wslWorkspace = "\\wsl.localhost\$DistroName\home\$TargetUser\$TargetWorkspace"
         if (-not (Test-Path $wslWorkspace)) {
             New-Item -ItemType Directory -Path $wslWorkspace -Force | Out-Null
             # Create src inside it too
             New-Item -ItemType Directory -Path "$wslWorkspace\src" -Force | Out-Null
-            Log-Success "Created sibling workspace directory: ~/ros_ws"
+            Log-Success "Created sibling workspace directory: ~/$TargetWorkspace"
         }
     } catch {
         Log-Warn "Failed to copy project to WSL automatically: $_"
@@ -363,6 +379,7 @@ try {
             Log-Success "WSL Restarted."
         }
     }
+
 
 } catch {
     Log-Error "Setup Failed: $_"

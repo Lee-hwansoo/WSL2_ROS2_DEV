@@ -14,8 +14,8 @@ alias sb='source ~/.bashrc'
 # =============================================================================
 # Navigation
 # =============================================================================
-alias cw='cd ~/ros_ws'
-alias cs='cd ~/ros_ws/src'
+alias cw='cd ~/$ROS_WORKSPACE'
+alias cs='cd ~/$ROS_WORKSPACE/src'
 alias ce='cd ~/env'
 
 # =============================================================================
@@ -66,7 +66,7 @@ alias vulkan_check='vulkaninfo --summary 2>/dev/null | head -20 || echo "Vulkan 
 # =============================================================================
 alias gz='gazebo'
 alias gzs='ros2 launch gazebo_ros gazebo.launch.py'
-alias gzw='export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:~/ros_ws/src'
+alias gzw='export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:~/$ROS_WORKSPACE/src'
 
 # =============================================================================
 # WSL2 Specific

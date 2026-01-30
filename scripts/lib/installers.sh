@@ -243,6 +243,8 @@ install_uv() {
 # =============================================================================
 setup_user() {
     local username=$1
+    local workspace_name="${2:-ros_ws}"
+
     if id -u "$username" &>/dev/null; then
         log_info "User '$username' already exists."
     else
@@ -262,7 +264,7 @@ setup_user() {
     usermod -aG sudo,render,video "$username"
 
     # Create workspace
-    local ws_dir="/home/$username/ros_ws"
+    local ws_dir="/home/$username/$workspace_name"
     mkdir -p "$ws_dir/src"
     chown -R "$username:$username" "/home/$username"
     log_success "Workspace created at $ws_dir"
@@ -290,26 +292,35 @@ setup_wsl_conf() {
 # =============================================================================
 configure_ros_environment() {
     local username=$1
+    local workspace_name="${2:-ros_ws}"
     local bashrc="/home/$username/.bashrc"
     local ros_distro="${ROS_DISTRO:-humble}"
 
-    log_info "Configuring ROS2 environment for $username..."
+    log_info "Configuring ROS2 environment for $username ($workspace_name)..."
 
     # Backup bashrc
     cp "$bashrc" "${bashrc}.bak" 2>/dev/null || true
 
     # Add ROS2 source
     if ! grep -q "source /opt/ros/${ros_distro}/setup.bash" "$bashrc"; then
+        # 1. Base ROS2 Setup
+        echo "" >> "$bashrc"
+        echo "# =============================================================================" >> "$bashrc"
+        echo "# ROS2 Environment" >> "$bashrc"
+        echo "# =============================================================================" >> "$bashrc"
+        echo "source /opt/ros/humble/setup.bash" >> "$bashrc"
+        echo "" >> "$bashrc"
+
+        # 2. Dynamic Workspace Variable
+        echo "# Workspace Name" >> "$bashrc"
+        echo "export ROS_WORKSPACE=\"$workspace_name\"" >> "$bashrc"
+
+        # 3. Static Logic (quoted heredoc)
         cat >> "$bashrc" << 'EOF'
 
-# =============================================================================
-# ROS2 Environment
-# =============================================================================
-source /opt/ros/humble/setup.bash
-
 # Workspace (if exists)
-if [ -f ~/ros_ws/install/setup.bash ]; then
-    source ~/ros_ws/install/setup.bash
+if [ -f ~/$ROS_WORKSPACE/install/setup.bash ]; then
+    source ~/$ROS_WORKSPACE/install/setup.bash
 fi
 
 # Colcon autocomplete

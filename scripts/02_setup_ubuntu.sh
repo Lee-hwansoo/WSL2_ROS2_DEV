@@ -23,8 +23,20 @@ source "$SCRIPT_DIR/lib/installers.sh"
 # =============================================================================
 # ARGUMENTS
 # =============================================================================
-TARGET_USER=${1:-ubuntu}
+TARGET_USER=${1}
 HOST_CACHE_DIR=$2
+TARGET_WORKSPACE=${3}
+
+# Interactive prompts if arguments are missing
+if [ -z "$TARGET_USER" ]; then
+    read -p "Enter Linux Username [default: ubuntu]: " input_user
+    TARGET_USER=${input_user:-ubuntu}
+fi
+
+if [ -z "$TARGET_WORKSPACE" ]; then
+    read -p "Enter Workspace Name [default: ros_ws]: " input_ws
+    TARGET_WORKSPACE=${input_ws:-ros_ws}
+fi
 
 # =============================================================================
 # MAIN
@@ -136,7 +148,7 @@ install_uv
 # 6. User & Environment Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 log_info "[6/6] Configuring user and environment..."
-setup_user "$TARGET_USER"
+setup_user "$TARGET_USER" "$TARGET_WORKSPACE"
 
 if [ "$IS_WSL" = true ]; then
     setup_wsl_conf "$TARGET_USER"
@@ -147,7 +159,7 @@ if [ -n "$HOST_CACHE_DIR" ]; then
     configure_user_cache "$TARGET_USER" "$HOST_CACHE_DIR"
 fi
 
-configure_ros_environment "$TARGET_USER"
+configure_ros_environment "$TARGET_USER" "$TARGET_WORKSPACE"
 
 # Initialize rosdep
 if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
@@ -180,5 +192,5 @@ log_info "Next steps:"
 log_info "  1. Open a new terminal or run: source ~/.bashrc"
 log_info "  2. Verify ROS2: echo \$ROS_DISTRO"
 log_info "  3. Check GPU: hw_check"
-log_info "  4. Start coding in ~/ros_ws"
+log_info "  4. Start coding in ~/$TARGET_WORKSPACE"
 echo ""

@@ -129,3 +129,12 @@ case "${1:-}" in
     auto|"")  setup_auto ;;
     *)        echo "Usage: $0 {auto|intel|nvidia|cpu|status}" ;;
 esac
+
+# GPU 설정 후 ROS 환경이 깨졌다면 복구
+if [ -z "$LD_LIBRARY_PATH" ] || [[ "$LD_LIBRARY_PATH" != *"/opt/ros"* ]]; then
+    TARGET_DISTRO="${ROS_DISTRO:-humble}"
+    
+    if [ -f "/opt/ros/$TARGET_DISTRO/setup.bash" ]; then
+        source "/opt/ros/$TARGET_DISTRO/setup.bash"
+    fi
+fi
